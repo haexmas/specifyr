@@ -1,0 +1,15 @@
+{
+  "schema": "spec-logic-vocabulary-pack-v1",
+  "id": "org.spec-logic.core",
+  "version": "0.1.0",
+  "concepts": ["core:artifact", "core:claim", "core:evidence"],
+  "predicates": [
+    {"id": "core:depends_on", "domain": "core:artifact", "range": "core:artifact"},
+    {"id": "core:implements", "domain": "core:artifact", "range": "core:claim"},
+    {"id": "core:references", "domain": "core:artifact", "range": "core:artifact"},
+    {"id": "core:refines", "domain": "core:artifact", "range": "core:artifact"},
+    {"id": "core:supersedes", "domain": "core:claim", "range": "core:claim"},
+    {"id": "core:verifies", "domain": "core:evidence", "range": "core:claim"}
+  ]
+}
+

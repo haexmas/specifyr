@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-logic.dev/schemas/workflow-profile.v1.schema.json",
+  "title": "spec-logic Workflow Profile v1",
+  "type": "object",
+  "required": ["schema", "id", "artifacts", "gates"],
+  "properties": {
+    "schema": {"const": "spec-logic-workflow-profile-v1"},
+    "id": {"type": "string", "minLength": 1},
+    "artifacts": {"type": "array", "items": {"type": "object"}},
+    "gates": {"type": "array", "items": {"type": "object"}}
+  }
+}
+

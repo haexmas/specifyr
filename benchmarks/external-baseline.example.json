@@ -1,0 +1,18 @@
+{
+  "schema": "spec-logic-external-baseline-v1",
+  "name": "speckit-analyze-model-name-run-1",
+  "evidence_rate": null,
+  "predictions": {
+    "haex-constitution-cardinality-conflict": ["contradiction"],
+    "modal-must-versus-must-not": [],
+    "same-constraint-disjoint-scopes": [],
+    "plan-references-superseded-decision": ["stale_reference"],
+    "closed-world-requirement-uncovered": ["missing_coverage"],
+    "open-world-requirement-not-yet-covered": [],
+    "task-dependency-cycle": [],
+    "refinement-cycle-allowed": [],
+    "unresolved-artifact-reference": ["unresolved_reference"],
+    "explicit-ambiguity": ["ambiguity"]
+  }
+}
+

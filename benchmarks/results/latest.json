@@ -1,0 +1,136 @@
+{
+  "case_results": [
+    {
+      "document_baseline": [],
+      "expected": [
+        "contradiction"
+      ],
+      "formal": [
+        "contradiction"
+      ],
+      "id": "haex-constitution-cardinality-conflict"
+    },
+    {
+      "document_baseline": [],
+      "expected": [
+        "contradiction"
+      ],
+      "formal": [
+        "contradiction"
+      ],
+      "id": "modal-must-versus-must-not"
+    },
+    {
+      "document_baseline": [],
+      "expected": [],
+      "formal": [],
+      "id": "same-constraint-disjoint-scopes"
+    },
+    {
+      "document_baseline": [
+        "stale_reference"
+      ],
+      "expected": [
+        "stale_reference"
+      ],
+      "formal": [
+        "stale_reference"
+      ],
+      "id": "plan-references-superseded-decision"
+    },
+    {
+      "document_baseline": [
+        "missing_coverage"
+      ],
+      "expected": [
+        "missing_coverage"
+      ],
+      "formal": [
+        "missing_coverage"
+      ],
+      "id": "closed-world-requirement-uncovered"
+    },
+    {
+      "document_baseline": [
+        "missing_coverage"
+      ],
+      "expected": [],
+      "formal": [],
+      "id": "open-world-requirement-not-yet-covered"
+    },
+    {
+      "document_baseline": [],
+      "expected": [
+        "dependency_cycle"
+      ],
+      "formal": [
+        "dependency_cycle"
+      ],
+      "id": "task-dependency-cycle"
+    },
+    {
+      "document_baseline": [],
+      "expected": [],
+      "formal": [],
+      "id": "refinement-cycle-allowed"
+    },
+    {
+      "document_baseline": [
+        "unresolved_reference"
+      ],
+      "expected": [
+        "unresolved_reference"
+      ],
+      "formal": [
+        "unresolved_reference"
+      ],
+      "id": "unresolved-artifact-reference"
+    },
+    {
+      "document_baseline": [
+        "ambiguity"
+      ],
+      "expected": [
+        "ambiguity"
+      ],
+      "formal": [
+        "ambiguity"
+      ],
+      "id": "explicit-ambiguity"
+    }
+  ],
+  "cases": 10,
+  "corpus": "spec-logic-golden-v1",
+  "limitations": [
+    "The bundled document baseline is not an execution of the model-driven /speckit.analyze command.",
+    "The curated corpus measures known consistency patterns, not general natural-language understanding.",
+    "External LLM baselines must be repeated and supplied separately to measure variance."
+  ],
+  "runners": {
+    "document_baseline": {
+      "deterministic": true,
+      "evidence_rate": 1.0,
+      "f1": 0.6666666666666666,
+      "false_negative": 3,
+      "false_positive": 1,
+      "mean_case_ms": 0.0055988999999999995,
+      "precision": 0.8,
+      "recall": 0.5714285714285714,
+      "scope": "plain deterministic Spec Kit/ADR artifacts; not /speckit.analyze",
+      "true_positive": 4
+    },
+    "formal": {
+      "deterministic": true,
+      "evidence_rate": 1.0,
+      "f1": 1.0,
+      "false_negative": 0,
+      "false_positive": 0,
+      "mean_case_ms": 0.027830031999999998,
+      "precision": 1.0,
+      "recall": 1.0,
+      "true_positive": 7
+    }
+  },
+  "runs_per_case": 25,
+  "schema": "spec-logic-benchmark-result-v1"
+}

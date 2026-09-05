@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-logic.dev/schemas/candidates.v1.schema.json",
+  "title": "spec-logic Candidate Set v1",
+  "type": "object",
+  "required": ["schema", "source", "notice", "concept_candidates", "relation_candidates", "vocabulary_candidates"],
+  "properties": {
+    "schema": {"const": "spec-logic-candidates-v1"},
+    "source": {"type": "string"},
+    "notice": {"type": "string"},
+    "concept_candidates": {"type": "array"},
+    "relation_candidates": {"type": "array"},
+    "vocabulary_candidates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+  }
+}
+

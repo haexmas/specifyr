@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-logic.dev/schemas/spec-model.v1.schema.json",
+  "title": "spec-logic Spec Model v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "artifacts", "claims", "relations", "closed_world"],
+  "properties": {
+    "schema": {"const": "spec-logic-model-v1"},
+    "metadata": {"type": "object"},
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "claims": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/claim"}
+    },
+    "relations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relation"}
+    },
+    "closed_world": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/namespaced"}
+    }
+  },
+  "$defs": {
+    "namespaced": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "status": {
+      "enum": ["proposed", "draft", "active", "accepted", "superseded", "rejected", "withdrawn", "stale"]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "anchor": {"type": "string"},
+        "location": {"type": "string"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "kind", "status"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "status": {"$ref": "#/$defs/status"},
+        "path": {"type": "string"},
+        "digest": {"type": "string"},
+        "source": {"$ref": "#/$defs/source"}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "kind", "subject", "predicate", "value"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "subject": {"type": "string", "minLength": 1},
+        "predicate": {"$ref": "#/$defs/namespaced"},
+        "modality": {"enum": ["asserts", "must", "must_not", "should", "may"]},
+        "polarity": {"enum": ["positive", "negative"]},
+        "operator": {"enum": ["equals", "exactly", "at_least", "at_most", "greater_than", "less_than"]},
+        "value": {},
+        "scope": {"type": "object"},
+        "status": {"$ref": "#/$defs/status"},
+        "source": {"$ref": "#/$defs/source"},
+        "provenance": {"type": "object"}
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["id", "source", "target", "predicate"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "predicate": {"$ref": "#/$defs/namespaced"},
+        "status": {"$ref": "#/$defs/status"},
+        "source_ref": {"$ref": "#/$defs/source"},
+        "provenance": {"type": "object"}
+      }
+    }
+  }
+}
+

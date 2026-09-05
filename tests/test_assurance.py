@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from spec_logic.assurance import verify_rule_pack
+from specifyr.assurance import verify_rule_pack
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +14,7 @@ class AssuranceTest(unittest.TestCase):
     def test_bundled_and_authoring_rule_packs_are_identical(self) -> None:
         authoring = json.loads((ROOT / "packs/core/rules.json").read_text(encoding="utf-8"))
         bundled = json.loads(
-            (ROOT / "src/spec_logic/data/core_rules.json").read_text(encoding="utf-8")
+            (ROOT / "src/specifyr/data/core_rules.json").read_text(encoding="utf-8")
         )
         self.assertEqual(authoring, bundled)
 

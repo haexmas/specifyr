@@ -100,7 +100,7 @@
     }
   ],
   "cases": 10,
-  "corpus": "spec-logic-golden-v1",
+  "corpus": "specifyr-golden-v1",
   "limitations": [
     "The bundled document baseline is not an execution of the model-driven /speckit.analyze command.",
     "The curated corpus measures known consistency patterns, not general natural-language understanding.",
@@ -132,5 +132,5 @@
     }
   },
   "runs_per_case": 25,
-  "schema": "spec-logic-benchmark-result-v1"
+  "schema": "specifyr-benchmark-result-v1"
 }

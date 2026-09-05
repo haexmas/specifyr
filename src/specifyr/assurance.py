@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from spec_logic.model import validate_model
-from spec_logic.rules import evaluate_rules, validate_rule_pack
+from specifyr.model import validate_model
+from specifyr.rules import evaluate_rules, validate_rule_pack
 
 
 def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
     rules = validate_rule_pack(rule_pack_data)
-    if not isinstance(corpus_data, dict) or corpus_data.get("schema") != "spec-logic-benchmark-corpus-v1":
-        raise ValueError("assurance corpus must use spec-logic-benchmark-corpus-v1")
+    if not isinstance(corpus_data, dict) or corpus_data.get("schema") != "specifyr-benchmark-corpus-v1":
+        raise ValueError("assurance corpus must use specifyr-benchmark-corpus-v1")
     cases = corpus_data.get("cases", [])
     if not isinstance(cases, list) or not cases:
         raise ValueError("assurance corpus requires cases")
@@ -65,7 +65,7 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
             failures.append({"rule": rule_id, "error": "disable-rule mutation survived"})
 
     return {
-        "schema": "spec-logic-rule-assurance-v1",
+        "schema": "specifyr-rule-assurance-v1",
         "status": "passed" if not failures else "failed",
         "rules": len(rule_ids),
         "cases": len(cases),

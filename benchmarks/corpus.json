@@ -1,6 +1,6 @@
 {
-  "schema": "spec-logic-benchmark-corpus-v1",
-  "id": "spec-logic-golden-v1",
+  "schema": "specifyr-benchmark-corpus-v1",
+  "id": "specifyr-golden-v1",
   "description": "Curated cross-artifact consistency cases for the first vertical slice.",
   "cases": [
     {
@@ -19,7 +19,7 @@
         }
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "metadata": {"case": "haex-constitution-cardinality-conflict"},
         "artifacts": [],
         "claims": [
@@ -66,7 +66,7 @@
         {"path": "docs/adr/0020.md", "content": "# ADR\n\nThe service must not retain audit records.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [],
         "claims": [
           {
@@ -111,7 +111,7 @@
         {"path": "specs/030/spec.md", "content": "Production uses three replicas; development uses one.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [],
         "claims": [
           {
@@ -157,7 +157,7 @@
         {"path": "specs/040/plan.md", "content": "# Plan\n\nSuperseded in part by ADR 0041. Do not implement against the retired decision.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [
           {"id": "artifact:plan-040", "kind": "plan", "status": "active", "path": "specs/040/plan.md", "source": {"path": "specs/040/plan.md"}}
         ],
@@ -200,7 +200,7 @@
         {"path": "specs/050/tasks.md", "content": "# Tasks\n\n- T001 Build token parser.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [],
         "claims": [
           {
@@ -231,7 +231,7 @@
         {"path": "specs/060/spec.md", "content": "# Spec\n\n- **FR-060**: The service should emit metrics.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [],
         "claims": [
           {
@@ -262,7 +262,7 @@
         {"path": "specs/070/tasks.md", "content": "# Tasks\n\nT070-A depends on T070-B. T070-B depends on T070-C. T070-C depends on T070-A.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [
           {"id": "task:A", "kind": "task", "status": "active", "path": "specs/070/tasks.md", "source": {"path": "specs/070/tasks.md", "anchor": "A"}},
           {"id": "task:B", "kind": "task", "status": "active", "path": "specs/070/tasks.md", "source": {"path": "specs/070/tasks.md", "anchor": "B"}},
@@ -286,7 +286,7 @@
         {"path": "specs/080/plan.md", "content": "# Plan\n\nAnalyst and implementer refine the design iteratively.\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [
           {"id": "role:analyst", "kind": "role", "status": "active", "path": "specs/080/plan.md", "source": {"path": "specs/080/plan.md"}},
           {"id": "role:implementer", "kind": "role", "status": "active", "path": "specs/080/plan.md", "source": {"path": "specs/080/plan.md"}}
@@ -308,7 +308,7 @@
         {"path": "specs/090/plan.md", "content": "# Plan\n\nSee [the API contract](contracts/api.md).\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [
           {"id": "artifact:plan-090", "kind": "plan", "status": "active", "path": "specs/090/plan.md", "source": {"path": "specs/090/plan.md"}}
         ],
@@ -328,7 +328,7 @@
         {"path": "specs/100/spec.md", "content": "# Spec\n\n[NEEDS CLARIFICATION: The service must be fast, but no metric or threshold is defined.]\n"}
       ],
       "model": {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "artifacts": [],
         "claims": [
           {

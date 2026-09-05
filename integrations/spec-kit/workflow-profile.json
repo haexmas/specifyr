@@ -1,6 +1,6 @@
 {
-  "schema": "spec-logic-workflow-profile-v1",
-  "id": "org.spec-logic.github-speckit",
+  "schema": "specifyr-workflow-profile-v1",
+  "id": "org.specifyr.github-speckit",
   "artifacts": [
     {"role": "specification", "discover": "specs/**/spec.md", "adapter": "speckit-v1"},
     {"role": "plan", "discover": "specs/**/plan.md", "adapter": "speckit-v1"},

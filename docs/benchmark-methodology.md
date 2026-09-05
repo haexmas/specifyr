@@ -56,7 +56,7 @@ Runtime is descriptive only on this small corpus.
 Export the documents:
 
 ```bash
-spec-logic benchmark-export --output spec-logic-out/benchmark-cases
+specifyr benchmark-export --output specifyr-out/benchmark-cases
 ```
 
 Run `/speckit.analyze` independently for each case without exposing the gold
@@ -75,7 +75,7 @@ Record one run using `benchmarks/external-baseline.example.json` as the shape,
 then score it:
 
 ```bash
-spec-logic benchmark \
+specifyr benchmark \
   --external-baseline path/to/speckit-run.json \
   --runs 25 \
   --format markdown

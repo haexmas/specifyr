@@ -1,6 +1,6 @@
 {
-  "schema": "spec-logic-rule-pack-v1",
-  "id": "org.spec-logic.core",
+  "schema": "specifyr-rule-pack-v1",
+  "id": "org.specifyr.core",
   "version": "0.1.0",
   "rules": [
     {

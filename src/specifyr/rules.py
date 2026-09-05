@@ -6,11 +6,11 @@ from collections import defaultdict
 from math import inf
 from typing import Any, Callable
 
-from spec_logic.errors import ContractError
-from spec_logic.findings import make_finding, sort_findings, source_evidence
-from spec_logic.model import ModelIndex, is_active, scope_key
+from specifyr.errors import ContractError
+from specifyr.findings import make_finding, sort_findings, source_evidence
+from specifyr.model import ModelIndex, is_active, scope_key
 
-RULE_PACK_SCHEMA = "spec-logic-rule-pack-v1"
+RULE_PACK_SCHEMA = "specifyr-rule-pack-v1"
 KNOWN_KINDS = frozenset(
     {
         "contradictory_claims",

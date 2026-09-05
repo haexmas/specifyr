@@ -6,7 +6,7 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
-spec-logic-out/
+specifyr-out/
 graphify-out/cache/
 graphify-out/cost.json
 

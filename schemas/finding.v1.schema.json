@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spec-logic.dev/schemas/finding.v1.schema.json",
-  "title": "spec-logic Finding v1",
+  "$id": "https://specifyr.dev/schemas/finding.v1.schema.json",
+  "title": "specifyr Finding v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "rule_id", "category", "severity", "message", "evidence", "details"],

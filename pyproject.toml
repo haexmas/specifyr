@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spec-logic"
+name = "specifyr"
 version = "0.1.0"
 description = "Deterministic consistency checking for specification graphs"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-authors = [{ name = "spec-logic contributors" }]
+authors = [{ name = "specifyr contributors" }]
 dependencies = []
 
 [project.optional-dependencies]
@@ -17,7 +17,7 @@ smt = ["z3-solver>=4.13"]
 dev = ["mypy>=1.8", "ruff>=0.5"]
 
 [project.scripts]
-spec-logic = "spec_logic.cli:main"
+specifyr = "specifyr.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -26,7 +26,7 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-spec_logic = ["data/*.json"]
+specifyr = ["data/*.json"]
 
 [tool.ruff]
 line-length = 100
@@ -38,5 +38,5 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-packages = ["spec_logic"]
+packages = ["specifyr"]
 mypy_path = "src"

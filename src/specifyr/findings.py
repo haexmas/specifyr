@@ -59,7 +59,7 @@ def sort_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def render_human(report: dict[str, Any]) -> str:
     lines = [
-        f"spec-logic: {report['status']} ({len(report['findings'])} findings)",
+        f"specifyr: {report['status']} ({len(report['findings'])} findings)",
         (
             "coverage: "
             f"{report['coverage']['formalized_claims']}/{report['coverage']['total_claims']} "

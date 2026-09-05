@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spec-logic.dev/schemas/vocabulary-pack.v1.schema.json",
-  "title": "spec-logic Vocabulary Pack v1",
+  "$id": "https://specifyr.dev/schemas/vocabulary-pack.v1.schema.json",
+  "title": "specifyr Vocabulary Pack v1",
   "type": "object",
   "required": ["schema", "id", "version", "concepts", "predicates"],
   "properties": {
-    "schema": {"const": "spec-logic-vocabulary-pack-v1"},
+    "schema": {"const": "specifyr-vocabulary-pack-v1"},
     "id": {"type": "string", "minLength": 1},
     "version": {"type": "string"},
     "concepts": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},

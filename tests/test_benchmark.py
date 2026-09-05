@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from spec_logic.benchmark import run_benchmark
+from specifyr.benchmark import run_benchmark
 
 
 ROOT = Path(__file__).resolve().parents[1]

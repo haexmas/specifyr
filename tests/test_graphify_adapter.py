@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from spec_logic.adapters.graphify import import_graphify
+from specifyr.adapters.graphify import import_graphify
 
 
 class GraphifyAdapterTest(unittest.TestCase):
@@ -17,7 +17,7 @@ class GraphifyAdapterTest(unittest.TestCase):
             ],
         }
         result = import_graphify(graph)
-        self.assertEqual("spec-logic-candidates-v1", result["schema"])
+        self.assertEqual("specifyr-candidates-v1", result["schema"])
         edge = result["relation_candidates"][0]
         self.assertEqual("inferred", edge["provenance"]["confidence"])
         self.assertFalse(edge["provenance"]["authoritative"])

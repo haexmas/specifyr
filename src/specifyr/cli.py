@@ -10,19 +10,19 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from spec_logic.adapters.graphify import import_graphify
-from spec_logic.adapters.speckit import extract_project
-from spec_logic.assurance import verify_rule_pack
-from spec_logic.benchmark import render_markdown, run_benchmark
-from spec_logic.checker import check
-from spec_logic.errors import SpecLogicError
-from spec_logic.findings import render_human
-from spec_logic.io import load_json, pretty_json, write_json
+from specifyr.adapters.graphify import import_graphify
+from specifyr.adapters.speckit import extract_project
+from specifyr.assurance import verify_rule_pack
+from specifyr.benchmark import render_markdown, run_benchmark
+from specifyr.checker import check
+from specifyr.errors import SpecifyrError
+from specifyr.findings import render_human
+from specifyr.io import load_json, pretty_json, write_json
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="spec-logic")
-    parser.add_argument("--version", action="version", version="spec-logic 0.1.0")
+    parser = argparse.ArgumentParser(prog="specifyr")
+    parser.add_argument("--version", action="version", version="specifyr 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     check_parser = subparsers.add_parser("check", help="check a Spec Model against a rule pack")
@@ -33,14 +33,14 @@ def _parser() -> argparse.ArgumentParser:
 
     extract_parser = subparsers.add_parser("extract", help="extract deterministic Speckit/ADR structure")
     extract_parser.add_argument("project", type=Path, nargs="?", default=Path.cwd())
-    extract_parser.add_argument("--output", type=Path, default=Path("spec-logic-out/model.json"))
+    extract_parser.add_argument("--output", type=Path, default=Path("specifyr-out/model.json"))
 
     graphify_parser = subparsers.add_parser(
         "graphify-import", help="import graph.json as non-authoritative candidates"
     )
     graphify_parser.add_argument("--graph", type=Path, default=Path("graphify-out/graph.json"))
     graphify_parser.add_argument(
-        "--output", type=Path, default=Path("spec-logic-out/candidates.json")
+        "--output", type=Path, default=Path("specifyr-out/candidates.json")
     )
 
     verify_parser = subparsers.add_parser("rules-verify", help="verify rule examples and mutations")
@@ -62,7 +62,7 @@ def _parser() -> argparse.ArgumentParser:
         "benchmark-export", help="export benchmark documents for external analyzer runs"
     )
     export_parser.add_argument("--corpus", type=Path, default=Path("benchmarks/corpus.json"))
-    export_parser.add_argument("--output", type=Path, default=Path("spec-logic-out/benchmark-cases"))
+    export_parser.add_argument("--output", type=Path, default=Path("specifyr-out/benchmark-cases"))
     return parser
 
 
@@ -77,7 +77,7 @@ def _emit(text: str, output: Path | None) -> None:
 def _load_rules(path: Path | None) -> Any:
     if path is not None:
         return load_json(path)
-    bundled = resources.files("spec_logic").joinpath("data/core_rules.json")
+    bundled = resources.files("specifyr").joinpath("data/core_rules.json")
     return json.loads(bundled.read_text(encoding="utf-8"))
 
 
@@ -156,7 +156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "benchmark-export":
             return _export_cases(load_json(args.corpus), args.output)
-    except (OSError, ValueError, SpecLogicError) as exc:
+    except (OSError, ValueError, SpecifyrError) as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
     return 2

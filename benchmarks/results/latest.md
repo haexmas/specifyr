@@ -1,6 +1,6 @@
-# spec-logic benchmark
+# specifyr benchmark
 
-Corpus: `spec-logic-golden-v1` · cases: 10 · runs/case: 25
+Corpus: `specifyr-golden-v1` · cases: 10 · runs/case: 25
 
 | Runner | Precision | Recall | F1 | FP | FN | Deterministic | Mean ms/case |
 |---|---:|---:|---:|---:|---:|:---:|---:|

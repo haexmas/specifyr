@@ -2,7 +2,7 @@
 
 ## Boundary
 
-`spec-logic` separates discovery from judgment:
+`specifyr` separates discovery from judgment:
 
 1. Speckit/ADR adapters extract deterministic structure.
 2. Graphify contributes non-authoritative candidate nodes and relations.

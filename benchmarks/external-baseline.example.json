@@ -1,5 +1,5 @@
 {
-  "schema": "spec-logic-external-baseline-v1",
+  "schema": "specifyr-external-baseline-v1",
   "name": "speckit-analyze-model-name-run-1",
   "evidence_rate": null,
   "predictions": {

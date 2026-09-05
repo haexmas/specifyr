@@ -1,6 +1,6 @@
-# spec-logic
+# specifyr
 
-`spec-logic` is a local, deterministic consistency checker for specifications,
+`specifyr` is a local, deterministic consistency checker for specifications,
 plans, ADRs, tasks, tests, and discovery graphs. It keeps natural-language
 artifacts readable while giving selected normative claims executable semantics.
 
@@ -20,7 +20,7 @@ The project is an MVP built around one trust boundary:
 - Numeric interval conflicts (`exactly`, `at_least`, `at_most`, `greater_than`,
   `less_than`) plus `must` versus `must_not` conflicts.
 - Deterministic Speckit/ADR structure extraction, including visible
-  `spec-logic` JSON blocks in Markdown.
+  `specifyr` JSON blocks in Markdown.
 - A Graphify `graph.json` adapter that preserves confidence labels and emits
   non-authoritative candidates.
 - Rule-pack assurance with conforming/violating examples and disable-rule
@@ -38,30 +38,30 @@ python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e .
 
-spec-logic rules-verify
-spec-logic benchmark --runs 25 --format markdown
+specifyr rules-verify
+specifyr benchmark --runs 25 --format markdown
 ```
 
 Check an existing formal model:
 
 ```bash
-spec-logic check --model path/to/model.json
+specifyr check --model path/to/model.json
 ```
 
 Extract deterministic structure and visible claims from a Speckit project:
 
 ```bash
-spec-logic extract /path/to/project --output spec-logic-out/model.json
-spec-logic check --model spec-logic-out/model.json
+specifyr extract /path/to/project --output specifyr-out/model.json
+specifyr check --model specifyr-out/model.json
 ```
 
 Import Graphify candidates:
 
 ```bash
 graphify update . --no-cluster
-spec-logic graphify-import \
+specifyr graphify-import \
   --graph graphify-out/graph.json \
-  --output spec-logic-out/candidates.json
+  --output specifyr-out/candidates.json
 ```
 
 The import does not promote candidates into the authoritative Spec Model.
@@ -73,7 +73,7 @@ Accepted claims live beside the prose they formalize:
 ````markdown
 - **FR-004**: Exactly one workflow must be active.
 
-```spec-logic
+```specifyr
 {"id":"example:FR-004","kind":"requirement","modality":"must",
  "polarity":"positive","subject":"example:project",
  "predicate":"example:active-workflow-count","operator":"exactly",
@@ -105,12 +105,12 @@ for the external-baseline protocol.
 ## Commands
 
 ```text
-spec-logic check             Check a model against a rule pack
-spec-logic extract           Extract Speckit/ADR structure and visible claims
-spec-logic graphify-import   Convert graph.json into review candidates
-spec-logic rules-verify      Verify rule examples and mutation sensitivity
-spec-logic benchmark         Compare formal and document-only runners
-spec-logic benchmark-export  Materialize corpus documents for external runs
+specifyr check             Check a model against a rule pack
+specifyr extract           Extract Speckit/ADR structure and visible claims
+specifyr graphify-import   Convert graph.json into review candidates
+specifyr rules-verify      Verify rule examples and mutation sensitivity
+specifyr benchmark         Compare formal and document-only runners
+specifyr benchmark-export  Materialize corpus documents for external runs
 ```
 
 Exit status is `0` for a conforming check, `1` for blocking findings, and `2`
@@ -136,7 +136,7 @@ backend and repeated external `/speckit.analyze` benchmark runs.
 
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -v
-PYTHONPATH=src python -m spec_logic rules-verify
-PYTHONPATH=src python -m spec_logic benchmark --runs 25 --format markdown
+PYTHONPATH=src python -m specifyr rules-verify
+PYTHONPATH=src python -m specifyr benchmark --runs 25 --format markdown
 ```
 

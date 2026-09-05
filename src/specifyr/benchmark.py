@@ -6,9 +6,9 @@ import hashlib
 import time
 from typing import Any, Callable
 
-from spec_logic.baseline import analyze_documents
-from spec_logic.checker import check
-from spec_logic.io import canonical_json
+from specifyr.baseline import analyze_documents
+from specifyr.checker import check
+from specifyr.io import canonical_json
 
 
 def _score(expected: dict[str, set[str]], predicted: dict[str, set[str]]) -> dict[str, Any]:
@@ -48,8 +48,8 @@ def run_benchmark(
     runs: int = 5,
     external_baseline: Any | None = None,
 ) -> dict[str, Any]:
-    if not isinstance(corpus_data, dict) or corpus_data.get("schema") != "spec-logic-benchmark-corpus-v1":
-        raise ValueError("benchmark corpus must use spec-logic-benchmark-corpus-v1")
+    if not isinstance(corpus_data, dict) or corpus_data.get("schema") != "specifyr-benchmark-corpus-v1":
+        raise ValueError("benchmark corpus must use specifyr-benchmark-corpus-v1")
     cases = corpus_data.get("cases", [])
     if not isinstance(cases, list) or not cases:
         raise ValueError("benchmark corpus requires cases")
@@ -128,7 +128,7 @@ def run_benchmark(
         }
 
     return {
-        "schema": "spec-logic-benchmark-result-v1",
+        "schema": "specifyr-benchmark-result-v1",
         "corpus": corpus_data.get("id", "unnamed"),
         "cases": len(cases),
         "runs_per_case": runs,
@@ -144,7 +144,7 @@ def run_benchmark(
 
 def render_markdown(result: dict[str, Any]) -> str:
     lines = [
-        "# spec-logic benchmark",
+        "# specifyr benchmark",
         "",
         f"Corpus: `{result['corpus']}` · cases: {result['cases']} · runs/case: {result['runs_per_case']}",
         "",

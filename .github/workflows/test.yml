@@ -20,6 +20,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --no-deps -e .
       - run: python -m unittest discover -s tests -v
-      - run: spec-logic rules-verify
-      - run: spec-logic benchmark --runs 10
+      - run: specifyr rules-verify
+      - run: specifyr benchmark --runs 10
 

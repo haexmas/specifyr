@@ -1,4 +1,4 @@
-"""Deterministic extraction of Spec Kit/ADR structure and spec-logic blocks."""
+"""Deterministic extraction of Spec Kit/ADR structure and specifyr blocks."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from spec_logic.errors import AdapterError
+from specifyr.errors import AdapterError
 
-_BLOCK_RE = re.compile(r"```spec-logic\s*\n(.*?)\n```", re.DOTALL)
+_BLOCK_RE = re.compile(r"```specifyr\s*\n(.*?)\n```", re.DOTALL)
 _STATUS_RE = re.compile(r"\*\*Status\*\*:\s*([^\n.]+)", re.IGNORECASE)
 _MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)")
 _REQUIREMENT_RE = re.compile(r"\*\*(FR-[0-9]{3,})\*\*:\s*(.+)")
@@ -97,11 +97,11 @@ def _read_formal_blocks(
         try:
             payload = json.loads(match.group(1))
         except json.JSONDecodeError as exc:
-            raise AdapterError(f"{relative}: invalid spec-logic JSON block {number}: {exc}") from None
+            raise AdapterError(f"{relative}: invalid specifyr JSON block {number}: {exc}") from None
         entries = payload if isinstance(payload, list) else [payload]
         for entry in entries:
             if not isinstance(entry, dict):
-                raise AdapterError(f"{relative}: spec-logic block entries must be objects")
+                raise AdapterError(f"{relative}: specifyr block entries must be objects")
             item = dict(entry)
             item_type = item.pop("type", "claim")
             item.setdefault("provenance", {"method": "asserted", "confidence": "authoritative"})
@@ -117,7 +117,7 @@ def _read_formal_blocks(
                 )
                 relations.append(item)
             else:
-                raise AdapterError(f"{relative}: unknown spec-logic entry type {item_type!r}")
+                raise AdapterError(f"{relative}: unknown specifyr entry type {item_type!r}")
     return claims, relations
 
 
@@ -209,7 +209,7 @@ def extract_project(root: Path) -> dict[str, Any]:
             )
 
     return {
-        "schema": "spec-logic-model-v1",
+        "schema": "specifyr-model-v1",
         "metadata": {"adapter": "speckit-v1", "root": "."},
         "artifacts": artifacts,
         "claims": claims,

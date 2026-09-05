@@ -7,9 +7,9 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from spec_logic.errors import ContractError
+from specifyr.errors import ContractError
 
-MODEL_SCHEMA = "spec-logic-model-v1"
+MODEL_SCHEMA = "specifyr-model-v1"
 ACTIVE_STATUSES = frozenset({"active", "accepted"})
 KNOWN_STATUSES = frozenset(
     {"proposed", "draft", "active", "accepted", "superseded", "rejected", "withdrawn", "stale"}

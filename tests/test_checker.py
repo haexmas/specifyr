@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from spec_logic.checker import check
+from specifyr.checker import check
 
 
 ROOT = Path(__file__).resolve().parents[1]

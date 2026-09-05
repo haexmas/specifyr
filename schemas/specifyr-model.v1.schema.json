@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spec-logic.dev/schemas/spec-model.v1.schema.json",
-  "title": "spec-logic Spec Model v1",
+  "$id": "https://specifyr.dev/schemas/specifyr-model.v1.schema.json",
+  "title": "specifyr Spec Model v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "artifacts", "claims", "relations", "closed_world"],
   "properties": {
-    "schema": {"const": "spec-logic-model-v1"},
+    "schema": {"const": "specifyr-model-v1"},
     "metadata": {"type": "object"},
     "artifacts": {
       "type": "array",

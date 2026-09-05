@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from spec_logic.adapters.speckit import extract_project
-from spec_logic.model import validate_model
+from specifyr.adapters.speckit import extract_project
+from specifyr.model import validate_model
 
 
 class SpeckitAdapterTest(unittest.TestCase):
@@ -17,7 +17,7 @@ class SpeckitAdapterTest(unittest.TestCase):
             spec.write_text(
                 "# Feature\n\n**Status**: Draft\n\n"
                 "- **FR-001**: Exactly one worker.\n\n"
-                "```spec-logic\n"
+                "```specifyr\n"
                 '{"id":"demo:FR-001","kind":"requirement","modality":"must",'
                 '"polarity":"positive","subject":"demo:pool","predicate":"demo:worker-count",'
                 '"operator":"exactly","value":1,"scope":{"feature":"001"},'

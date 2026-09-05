@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from spec_logic.errors import AdapterError
+from specifyr.errors import AdapterError
 
-CANDIDATE_SCHEMA = "spec-logic-candidates-v1"
+CANDIDATE_SCHEMA = "specifyr-candidates-v1"
 
 
 def import_graphify(data: Any, *, source: str = "graphify-out/graph.json") -> dict[str, Any]:

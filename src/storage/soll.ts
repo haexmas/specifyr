@@ -1,18 +1,30 @@
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 import { z } from "zod";
 
 import type { Edge, Model, Node } from "../core/schemas.js";
-import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.js";
+import {
+  EdgeSchema,
+  ModelMetaSchema,
+  ModelSchema,
+  NODE_ID_PATTERN,
+  NodeSchema,
+} from "../core/schemas.js";
 import { bucketForNode } from "./bucket.js";
-import { sollRoot as computeSollRoot, resolveInsideRoot } from "./paths.js";
+import {
+  sollRoot as computeSollRoot,
+  resolveExistingEntryInsideRoot,
+  resolveInsideRoot,
+} from "./paths.js";
 
 const IndexFileSchema = z.object({ edges: z.array(EdgeSchema) });
 
 const TMP_PATTERN = /\.tmp-\d+-\d+$/;
 
+/** Read and parse a JSON file after verifying its path remains symlink-free. */
 async function readJson(path: string): Promise<unknown> {
+  await resolveExistingEntryInsideRoot(dirname(path), path.slice(dirname(path).length + 1));
   const raw = await readFile(path, "utf8");
   try {
     return JSON.parse(raw);
@@ -21,7 +33,9 @@ async function readJson(path: string): Promise<unknown> {
   }
 }
 
+/** List a storage directory after verifying its existing path components. */
 async function listDir(path: string): Promise<string[]> {
+  await resolveExistingEntryInsideRoot(dirname(path), path.slice(dirname(path).length + 1));
   try {
     return await readdir(path);
   } catch (cause) {
@@ -31,20 +45,27 @@ async function listDir(path: string): Promise<string[]> {
   }
 }
 
+/** Write JSON through a temporary file and an atomic rename. */
 async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
   const dir = dirname(path);
+  await resolveExistingEntryInsideRoot(dir, path.slice(dir.length + 1));
   await mkdir(dir, { recursive: true });
+  await resolveExistingEntryInsideRoot(dir, path.slice(dir.length + 1));
   const payload = `${JSON.stringify(value, null, 2)}\n`;
   const tmp = `${path}.tmp-${process.pid}-${Date.now()}`;
+  await resolveExistingEntryInsideRoot(dirname(tmp), tmp.slice(dirname(tmp).length + 1));
   await writeFile(tmp, payload, "utf8");
+  await resolveExistingEntryInsideRoot(dir, path.slice(dir.length + 1));
+  await resolveExistingEntryInsideRoot(dirname(tmp), tmp.slice(dirname(tmp).length + 1));
   await rename(tmp, path);
 }
 
+/** Load and validate the model persisted under a repository's SOLL directory. */
 export async function loadSoll(repoRoot: string): Promise<Model> {
   const root = computeSollRoot(repoRoot);
 
-  const metaPath = resolveInsideRoot(root, ["_meta.json"]);
-  const indexPath = resolveInsideRoot(root, ["_index.json"]);
+  const metaPath = await resolveInsideRoot(root, ["_meta.json"]);
+  const indexPath = await resolveInsideRoot(root, ["_index.json"]);
 
   const meta = ModelMetaSchema.parse(await readJson(metaPath));
   const index = IndexFileSchema.parse(await readJson(indexPath));
@@ -52,44 +73,53 @@ export async function loadSoll(repoRoot: string): Promise<Model> {
 
   const nodes: Node[] = [];
 
-  const componentDirs = (await listDir(resolveInsideRoot(root, ["components"]))).sort();
+  const componentDirs = (await listDir(await resolveInsideRoot(root, ["components"]))).sort();
   for (const id of componentDirs) {
-    const componentPath = resolveInsideRoot(root, ["components", id, "component.json"]);
+    const componentPath = await resolveInsideRoot(root, ["components", id, "component.json"]);
     nodes.push(NodeSchema.parse(await readJson(componentPath)));
   }
 
-  const externalFiles = (await listDir(resolveInsideRoot(root, ["external"])))
+  const externalFiles = (await listDir(await resolveInsideRoot(root, ["external"])))
     .filter((name) => name.endsWith(".json"))
     .sort();
   for (const file of externalFiles) {
-    const externalPath = resolveInsideRoot(root, ["external", file]);
+    const externalPath = await resolveInsideRoot(root, ["external", file]);
     nodes.push(NodeSchema.parse(await readJson(externalPath)));
   }
 
   return ModelSchema.parse({ meta, nodes, edges });
 }
 
+/** Validate and persist a model under a repository's SOLL directory. */
 export async function saveSoll(repoRoot: string, model: Model): Promise<void> {
   const parsed = ModelSchema.parse(model);
+  const storageNodes = parsed.nodes.map((node) => ({ node, ...bucketForNode(node) }));
   const root = computeSollRoot(repoRoot);
+
+  const metaPath = await resolveInsideRoot(root, ["_meta.json"]);
+  const indexPath = await resolveInsideRoot(root, ["_index.json"]);
+  const componentsPath = await resolveInsideRoot(root, ["components"]);
+  const externalPath = await resolveInsideRoot(root, ["external"]);
+  const nodePaths = await Promise.all(
+    storageNodes.map(async ({ node, bucket, layout }) => ({
+      node,
+      path: await (layout === "folder"
+        ? resolveInsideRoot(root, [bucket, node.id, "component.json"])
+        : resolveInsideRoot(root, [bucket, `${node.id}.json`])),
+    })),
+  );
   await mkdir(root, { recursive: true });
 
-  await writeJsonAtomic(resolveInsideRoot(root, ["_meta.json"]), parsed.meta);
-  await writeJsonAtomic(resolveInsideRoot(root, ["_index.json"]), { edges: parsed.edges });
+  await writeJsonAtomic(metaPath, parsed.meta);
+  await writeJsonAtomic(indexPath, { edges: parsed.edges });
 
-  for (const node of parsed.nodes) {
-    const { bucket, layout } = bucketForNode(node);
-    const path =
-      layout === "folder"
-        ? resolveInsideRoot(root, [bucket, node.id, "component.json"])
-        : resolveInsideRoot(root, [bucket, `${node.id}.json`]);
+  for (const { node, path } of nodePaths) {
     await writeJsonAtomic(path, node);
   }
 
   const keptComponents = new Set<string>();
   const keptExternal = new Set<string>();
-  for (const node of parsed.nodes) {
-    const { bucket, layout } = bucketForNode(node);
+  for (const { node, bucket, layout } of storageNodes) {
     if (bucket === "components" && layout === "folder") {
       keptComponents.add(node.id);
     } else if (bucket === "external" && layout === "file") {
@@ -97,16 +127,13 @@ export async function saveSoll(repoRoot: string, model: Model): Promise<void> {
     }
   }
 
-  await pruneDirectory(
-    resolveInsideRoot(root, ["components"]),
-    (name) => keptComponents.has(name),
-    { rmDir: true },
-  );
-  await pruneDirectory(resolveInsideRoot(root, ["external"]), (name) => keptExternal.has(name), {
+  await pruneDirectory(componentsPath, (name) => keptComponents.has(name), { rmDir: true });
+  await pruneDirectory(externalPath, (name) => keptExternal.has(name), {
     rmDir: false,
   });
 }
 
+/** Remove stale generated entries without following symlinks or unknown files. */
 async function pruneDirectory(
   path: string,
   keep: (name: string) => boolean,
@@ -114,22 +141,12 @@ async function pruneDirectory(
 ): Promise<void> {
   const entries = await listDir(path);
   for (const entry of entries) {
+    const target = await resolveExistingEntryInsideRoot(path, entry);
     if (keep(entry)) continue;
-    let target: string;
-    try {
-      target = resolveInsideRoot(path, [entry]);
-    } catch {
-      // Entry does not match the safe-segment pattern.
-      // Recover crashed-write tmp files; leave anything else alone.
-      if (TMP_PATTERN.test(entry)) {
-        try {
-          await rm(join(path, entry), { force: true });
-        } catch {
-          // best-effort tmp cleanup
-        }
-      }
-      continue;
-    }
+    const isGeneratedEntry = options.rmDir
+      ? NODE_ID_PATTERN.test(entry)
+      : entry.endsWith(".json") && NODE_ID_PATTERN.test(entry.slice(0, -5));
+    if (!isGeneratedEntry && !TMP_PATTERN.test(entry)) continue;
     await rm(target, { recursive: options.rmDir, force: true });
   }
 }

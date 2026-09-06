@@ -12,6 +12,7 @@ export const SUPPORTED_NODE_TYPES = [
 
 export type SupportedNodeType = (typeof SUPPORTED_NODE_TYPES)[number];
 
+/** Map a supported model node to its SOLL bucket and on-disk layout. */
 export function bucketForNode(node: Pick<Node, "type">): {
   bucket: SollBucket;
   layout: SollLayout;

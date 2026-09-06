@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -54,7 +54,10 @@ describe("loadSoll (happy path)", () => {
     });
 
     const model = await loadSoll(repoRoot);
-    expect(model.nodes.map((n) => n.id).sort()).toEqual(["auth", "postgres"]);
+    expect([...model.nodes].sort((a, b) => a.id.localeCompare(b.id))).toEqual([
+      { id: "auth", type: "component", name: "Auth", classes: [] },
+      { id: "postgres", type: "data-store", name: "Postgres", classes: [] },
+    ]);
     expect(model.edges).toEqual([{ id: "e1", from: "auth", to: "postgres", type: "reads-from" }]);
   });
 
@@ -124,5 +127,22 @@ describe("loadSoll (error paths)", () => {
     writeJson(join(soll, "_meta.json"), { source: "soll" });
     writeJson(join(soll, "_index.json"), { edges: "not-an-array" });
     await expect(loadSoll(repoRoot)).rejects.toThrow();
+  });
+
+  it("rejects a symlinked component directory", async () => {
+    const soll = join(repoRoot, ".specifyr", "soll");
+    const outside = mkdtempSync(join(tmpdir(), "specifyr-load-outside-"));
+    mkdirSync(join(soll, "components"), { recursive: true });
+    writeJson(join(soll, "_meta.json"), { source: "soll" });
+    writeJson(join(soll, "_index.json"), { edges: [] });
+    writeJson(join(outside, "component.json"), {
+      id: "auth",
+      type: "component",
+      name: "Auth",
+    });
+    symlinkSync(outside, join(soll, "components", "auth"));
+
+    await expect(loadSoll(repoRoot)).rejects.toThrow(/symbolic link/i);
+    rmSync(outside, { recursive: true, force: true });
   });
 });

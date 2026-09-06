@@ -35,7 +35,9 @@ describe("SOLL storage round-trip", () => {
     const loaded = await loadSoll(repoRoot);
 
     expect(loaded.meta).toEqual(source.meta);
-    expect(loaded.nodes.map((n) => n.id).sort()).toEqual(source.nodes.map((n) => n.id).sort());
+    expect([...loaded.nodes].sort((a, b) => a.id.localeCompare(b.id))).toEqual(
+      [...source.nodes].sort((a, b) => a.id.localeCompare(b.id)),
+    );
     expect(loaded.edges).toEqual(source.edges);
   });
 

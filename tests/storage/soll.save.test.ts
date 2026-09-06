@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -73,6 +81,37 @@ describe("saveSoll (happy path)", () => {
         edges: [],
       }),
     ).rejects.toThrow(/unsupported node type/);
+    expect(existsSync(join(repoRoot, ".specifyr"))).toBe(false);
+  });
+
+  it("rejects a symlinked SOLL root before writing metadata", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "specifyr-save-outside-"));
+    mkdirSync(join(repoRoot, ".specifyr"));
+    symlinkSync(outside, join(repoRoot, ".specifyr", "soll"));
+
+    await expect(
+      saveSoll(repoRoot, { meta: { source: "soll" }, nodes: [], edges: [] }),
+    ).rejects.toThrow(/symbolic link/i);
+    expect(existsSync(join(outside, "_meta.json"))).toBe(false);
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  it("rejects a symlinked node directory before atomic write or rename", async () => {
+    const model = {
+      meta: { source: "soll" as const },
+      nodes: [{ id: "auth", type: "component", name: "Auth", classes: [] }],
+      edges: [],
+    };
+    await saveSoll(repoRoot, model);
+
+    const soll = join(repoRoot, ".specifyr", "soll");
+    const outside = mkdtempSync(join(tmpdir(), "specifyr-save-outside-"));
+    rmSync(join(soll, "components", "auth"), { recursive: true, force: true });
+    symlinkSync(outside, join(soll, "components", "auth"));
+
+    await expect(saveSoll(repoRoot, model)).rejects.toThrow(/symbolic link/i);
+    expect(existsSync(join(outside, "component.json"))).toBe(false);
+    rmSync(outside, { recursive: true, force: true });
   });
 });
 
@@ -167,5 +206,23 @@ describe("saveSoll (cleanup)", () => {
     });
 
     expect(existsSync(orphanedTmp)).toBe(false);
+  });
+
+  it("rejects a symlinked stale entry instead of pruning outside the SOLL tree", async () => {
+    const model = {
+      meta: { source: "soll" as const },
+      nodes: [{ id: "auth", type: "component", name: "Auth", classes: [] }],
+      edges: [],
+    };
+    await saveSoll(repoRoot, model);
+
+    const soll = join(repoRoot, ".specifyr", "soll");
+    const outside = mkdtempSync(join(tmpdir(), "specifyr-prune-outside-"));
+    writeFileSync(join(outside, "keep.txt"), "must survive");
+    symlinkSync(outside, join(soll, "components", "stale"));
+
+    await expect(saveSoll(repoRoot, model)).rejects.toThrow(/symbolic link/i);
+    expect(existsSync(join(outside, "keep.txt"))).toBe(true);
+    rmSync(outside, { recursive: true, force: true });
   });
 });

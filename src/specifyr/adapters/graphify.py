@@ -15,7 +15,12 @@ def import_graphify(data: Any, *, source: str = "graphify-out/graph.json") -> di
     nodes = data.get("nodes", [])
     edges = data.get("edges", [])
     if isinstance(nodes, dict):
-        nodes = [{"id": node_id, **attrs} for node_id, attrs in nodes.items()]
+        converted: list[Any] = []
+        for node_id, attrs in nodes.items():
+            if not isinstance(attrs, dict):
+                raise AdapterError(f"nodes[{node_id!r}] must be an object")
+            converted.append({**attrs, "id": node_id})
+        nodes = converted
     if not isinstance(nodes, list) or not isinstance(edges, list):
         raise AdapterError("Graphify graph requires nodes and edges arrays")
 

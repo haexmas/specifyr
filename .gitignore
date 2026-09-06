@@ -9,4 +9,5 @@ dist/
 specifyr-out/
 graphify-out/cache/
 graphify-out/cost.json
+.coderabbit_reviews/
 

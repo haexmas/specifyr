@@ -52,14 +52,17 @@ def analyze_documents(documents: list[dict[str, str]]) -> list[dict[str, Any]]:
                     }
                 )
 
+    def _is_spec(document_path: str) -> bool:
+        return posixpath.basename(document_path) == "spec.md"
+
     requirement_definitions: dict[str, str] = {}
     non_spec_content = "\n".join(
         document["content"]
         for document in documents
-        if not document["path"].endswith("/spec.md")
+        if not _is_spec(document["path"])
     )
     for document in documents:
-        if not document["path"].endswith("/spec.md"):
+        if not _is_spec(document["path"]):
             continue
         for requirement_id in _REQUIREMENT_DEF_RE.findall(document["content"]):
             requirement_definitions[requirement_id] = document["path"]

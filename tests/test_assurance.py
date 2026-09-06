@@ -26,6 +26,14 @@ class AssuranceTest(unittest.TestCase):
         self.assertEqual(1.0, result["mutation"]["score"])
         self.assertEqual([], result["failures"])
 
+    def test_duplicate_corpus_case_ids_are_rejected(self) -> None:
+        rules = json.loads((ROOT / "packs/core/rules.json").read_text(encoding="utf-8"))
+        corpus = json.loads((ROOT / "benchmarks/corpus.json").read_text(encoding="utf-8"))
+        corpus["cases"].append(corpus["cases"][0].copy())
+
+        with self.assertRaisesRegex(ValueError, "duplicate corpus case id"):
+            verify_rule_pack(rules, corpus)
+
 
 if __name__ == "__main__":
     unittest.main()

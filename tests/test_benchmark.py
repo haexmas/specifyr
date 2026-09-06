@@ -30,7 +30,14 @@ class BenchmarkTest(unittest.TestCase):
         self.assertIn("external", result["runners"])
         self.assertFalse(result["runners"]["external"]["deterministic"])
 
+    def test_duplicate_corpus_case_ids_are_rejected(self) -> None:
+        rules = json.loads((ROOT / "packs/core/rules.json").read_text(encoding="utf-8"))
+        corpus = json.loads((ROOT / "benchmarks/corpus.json").read_text(encoding="utf-8"))
+        corpus["cases"].append(corpus["cases"][0].copy())
+
+        with self.assertRaisesRegex(ValueError, "duplicate corpus case id"):
+            run_benchmark(corpus, rules, runs=1)
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+export const SHIPPED_PACKS = [
+  "generic",
+  "python",
+  "typescript",
+  "vue",
+  "angular",
+  "c",
+  "cpp",
+  "rust",
+  "java",
+  "go",
+] as const;
+
+export const PackNameSchema = z.enum(SHIPPED_PACKS);
+
+const ScalarAttributeSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(["string", "number", "boolean"]),
+});
+
+const EnumAttributeSchema = z.object({
+  name: z.string().min(1),
+  type: z.literal("enum"),
+  allowedValues: z.array(z.string().min(1)).min(1),
+});
+
+export const AttributeDefinitionSchema = z.discriminatedUnion("type", [
+  ScalarAttributeSchema.extend({ type: z.literal("string") }),
+  ScalarAttributeSchema.extend({ type: z.literal("number") }),
+  ScalarAttributeSchema.extend({ type: z.literal("boolean") }),
+  EnumAttributeSchema,
+]);
+
+export const CustomTypeSchema = z.object({
+  kind: z.enum(["node", "edge"]),
+  name: z.string().min(1),
+  attributes: z.array(AttributeDefinitionSchema).default([]),
+});
+
+export const VocabularyConfigSchema = z
+  .object({
+    activePacks: z.array(PackNameSchema).min(1),
+    customTypes: z.array(CustomTypeSchema).default([]),
+  })
+  .superRefine((config, ctx) => {
+    const seen = new Map<string, Set<string>>();
+    for (const [index, custom] of config.customTypes.entries()) {
+      const perKind = seen.get(custom.kind) ?? new Set<string>();
+      if (perKind.has(custom.name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customTypes", index, "name"],
+          message: `duplicate custom ${custom.kind} type: ${custom.name}`,
+        });
+      }
+      perKind.add(custom.name);
+      seen.set(custom.kind, perKind);
+    }
+  });
+
+export type PackName = z.infer<typeof PackNameSchema>;
+export type VocabularyConfig = z.infer<typeof VocabularyConfigSchema>;
+export type CustomType = z.infer<typeof CustomTypeSchema>;

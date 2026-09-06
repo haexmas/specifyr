@@ -10,6 +10,9 @@
   "packageManager": "pnpm@9.15.0",
   "sideEffects": false,
   "files": ["dist"],
+  "bin": {
+    "specifyr": "dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/core/index.d.ts",

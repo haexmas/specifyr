@@ -56,9 +56,14 @@ def run_benchmark(
     if runs < 1:
         raise ValueError("runs must be positive")
 
+    seen_case_ids: set[str] = set()
     for case in cases:
         if not isinstance(case, dict) or not isinstance(case.get("id"), str) or "model" not in case:
             raise ValueError("each corpus case requires a string id and a model")
+        case_id = case["id"]
+        if case_id in seen_case_ids:
+            raise ValueError(f"duplicate corpus case id {case_id!r}")
+        seen_case_ids.add(case_id)
     expected = {case["id"]: set(case.get("expected_categories", [])) for case in cases}
     formal_predictions: dict[str, set[str]] = {}
     baseline_predictions: dict[str, set[str]] = {}
@@ -177,4 +182,3 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.extend(["", "## Limitations", ""])
     lines.extend(f"- {item}" for item in result["limitations"])
     return "\n".join(lines) + "\n"
-

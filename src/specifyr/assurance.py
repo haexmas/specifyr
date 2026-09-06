@@ -17,6 +17,7 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
         raise ValueError("assurance corpus requires cases")
 
     failures: list[dict[str, Any]] = []
+    seen_case_ids: set[str] = set()
     expected_by_case: dict[str, set[str]] = {}
     actual_by_case: dict[str, set[str]] = {}
     validated_models: dict[str, dict[str, Any]] = {}
@@ -24,6 +25,9 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
         if not isinstance(case, dict) or not isinstance(case.get("id"), str) or "model" not in case:
             raise ValueError("each corpus case requires a string id and a model")
         case_id = case["id"]
+        if case_id in seen_case_ids:
+            raise ValueError(f"duplicate corpus case id {case_id!r}")
+        seen_case_ids.add(case_id)
         model = validate_model(case["model"])
         validated_models[case_id] = model
         expected = set(case.get("expected_rule_ids", []))
@@ -80,4 +84,3 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
         "positive_examples": positive_examples,
         "failures": failures,
     }
-

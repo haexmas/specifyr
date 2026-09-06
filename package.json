@@ -21,6 +21,10 @@
     "./storage": {
       "types": "./dist/storage/index.d.ts",
       "import": "./dist/storage/index.js"
+    },
+    "./vocabulary": {
+      "types": "./dist/vocabulary/index.d.ts",
+      "import": "./dist/vocabulary/index.js"
     }
   },
   "scripts": {

@@ -4,10 +4,14 @@ export const MethodSchema = z.object({
   name: z.string().min(1),
 });
 
+export type Method = z.infer<typeof MethodSchema>;
+
 export const AttributeSchema = z.object({
   name: z.string().min(1),
   type: z.string().min(1).optional(),
 });
+
+export type Attribute = z.infer<typeof AttributeSchema>;
 
 export const ClassSchema = z.object({
   name: z.string().min(1),
@@ -33,6 +37,7 @@ export const NodeSchema = z
   .catchall(z.unknown());
 
 export type Node = z.infer<typeof NodeSchema>;
+export type ModelNode = Node;
 
 export const EdgeSchema = z.object({
   id: z.string().min(1),
@@ -51,8 +56,10 @@ export const MODEL_SOURCES = ["soll", "plan", "ist"] as const;
 
 export const ModelMetaSchema = z.object({
   source: z.enum(MODEL_SOURCES),
-  generatedAt: z.string().datetime().optional(),
+  generatedAt: z.iso.datetime().optional(),
 });
+
+export type ModelMeta = z.infer<typeof ModelMetaSchema>;
 
 export const ModelSchema = z
   .object({
@@ -60,31 +67,38 @@ export const ModelSchema = z
     edges: z.array(EdgeSchema).default([]),
     meta: ModelMetaSchema,
   })
-  .superRefine((model, ctx) => {
-    const ids = new Set<string>();
-    for (const node of model.nodes) {
-      if (ids.has(node.id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["nodes"],
-          message: `duplicate node id: ${node.id}`,
+  .check((ctx) => {
+    const model = ctx.value;
+    const firstSeen = new Map<string, number>();
+    for (const [index, node] of model.nodes.entries()) {
+      const priorIndex = firstSeen.get(node.id);
+      if (priorIndex !== undefined) {
+        ctx.issues.push({
+          code: "custom",
+          path: ["nodes", index, "id"],
+          message: `duplicate node id: ${node.id} (also at nodes[${priorIndex}])`,
+          input: node.id,
         });
+      } else {
+        firstSeen.set(node.id, index);
       }
-      ids.add(node.id);
     }
+    const ids = new Set(firstSeen.keys());
     for (const [index, edge] of model.edges.entries()) {
       if (!ids.has(edge.from)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+        ctx.issues.push({
+          code: "custom",
           path: ["edges", index, "from"],
           message: `edge references unknown node: ${edge.from}`,
+          input: edge.from,
         });
       }
       if (!ids.has(edge.to)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+        ctx.issues.push({
+          code: "custom",
           path: ["edges", index, "to"],
           message: `edge references unknown node: ${edge.to}`,
+          input: edge.to,
         });
       }
     }

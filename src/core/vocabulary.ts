@@ -44,15 +44,17 @@ export const VocabularyConfigSchema = z
     activePacks: z.array(PackNameSchema).min(1),
     customTypes: z.array(CustomTypeSchema).default([]),
   })
-  .superRefine((config, ctx) => {
+  .check((ctx) => {
+    const config = ctx.value;
     const seen = new Map<string, Set<string>>();
     for (const [index, custom] of config.customTypes.entries()) {
       const perKind = seen.get(custom.kind) ?? new Set<string>();
       if (perKind.has(custom.name)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+        ctx.issues.push({
+          code: "custom",
           path: ["customTypes", index, "name"],
           message: `duplicate custom ${custom.kind} type: ${custom.name}`,
+          input: custom.name,
         });
       }
       perKind.add(custom.name);
@@ -63,3 +65,4 @@ export const VocabularyConfigSchema = z
 export type PackName = z.infer<typeof PackNameSchema>;
 export type VocabularyConfig = z.infer<typeof VocabularyConfigSchema>;
 export type CustomType = z.infer<typeof CustomTypeSchema>;
+export type AttributeDefinition = z.infer<typeof AttributeDefinitionSchema>;

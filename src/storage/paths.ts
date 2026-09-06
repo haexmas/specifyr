@@ -1,6 +1,6 @@
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { NODE_ID_PATTERN } from "../core/schemas.ts";
+import { NODE_ID_PATTERN } from "../core/schemas.js";
 
 const FIXED_NAMES = new Set([
   ".specifyr",

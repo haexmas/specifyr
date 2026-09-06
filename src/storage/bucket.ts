@@ -1,4 +1,4 @@
-import type { Node } from "../core/schemas.ts";
+import type { Node } from "../core/schemas.js";
 
 export type SollBucket = "components" | "external";
 export type SollLayout = "folder" | "file";

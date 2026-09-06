@@ -3,10 +3,10 @@ import { dirname, join } from "node:path";
 
 import { z } from "zod";
 
-import type { Edge, Model, Node } from "../core/schemas.ts";
-import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.ts";
-import { bucketForNode } from "./bucket.ts";
-import { sollRoot as computeSollRoot, resolveInsideRoot } from "./paths.ts";
+import type { Edge, Model, Node } from "../core/schemas.js";
+import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.js";
+import { bucketForNode } from "./bucket.js";
+import { sollRoot as computeSollRoot, resolveInsideRoot } from "./paths.js";
 
 const IndexFileSchema = z.object({ edges: z.array(EdgeSchema) });
 

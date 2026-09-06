@@ -1,0 +1,10 @@
+{
+  "name": "cpp",
+  "nodeTypes": [
+    { "name": "translation-unit" },
+    { "name": "class" },
+    { "name": "function" },
+    { "name": "namespace" }
+  ],
+  "edgeTypes": [{ "name": "includes" }, { "name": "inherits" }, { "name": "calls" }]
+}

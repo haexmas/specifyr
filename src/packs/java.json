@@ -1,0 +1,5 @@
+{
+  "name": "java",
+  "nodeTypes": [{ "name": "package" }, { "name": "class" }, { "name": "interface" }],
+  "edgeTypes": [{ "name": "imports" }, { "name": "extends" }, { "name": "implements" }]
+}

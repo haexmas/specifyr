@@ -1,0 +1,10 @@
+{
+  "name": "angular",
+  "nodeTypes": [
+    { "name": "module" },
+    { "name": "component" },
+    { "name": "service" },
+    { "name": "directive" }
+  ],
+  "edgeTypes": [{ "name": "declares" }, { "name": "imports" }, { "name": "injects" }]
+}

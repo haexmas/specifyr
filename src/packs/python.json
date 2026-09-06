@@ -1,0 +1,16 @@
+{
+  "name": "python",
+  "nodeTypes": [
+    { "name": "package" },
+    { "name": "module" },
+    { "name": "class" },
+    { "name": "function" },
+    { "name": "coroutine" }
+  ],
+  "edgeTypes": [
+    { "name": "imports" },
+    { "name": "inherits" },
+    { "name": "calls" },
+    { "name": "decorates" }
+  ]
+}

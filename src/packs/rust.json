@@ -1,0 +1,10 @@
+{
+  "name": "rust",
+  "nodeTypes": [
+    { "name": "crate" },
+    { "name": "module" },
+    { "name": "trait" },
+    { "name": "struct" }
+  ],
+  "edgeTypes": [{ "name": "uses" }, { "name": "implements" }]
+}

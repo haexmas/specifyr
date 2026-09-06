@@ -1,0 +1,5 @@
+{
+  "name": "go",
+  "nodeTypes": [{ "name": "package" }, { "name": "struct" }, { "name": "interface" }],
+  "edgeTypes": [{ "name": "imports" }]
+}

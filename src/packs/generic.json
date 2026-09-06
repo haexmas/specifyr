@@ -1,0 +1,20 @@
+{
+  "name": "generic",
+  "nodeTypes": [
+    { "name": "component", "topLevel": true },
+    { "name": "module", "topLevel": true },
+    { "name": "external-service", "topLevel": true },
+    { "name": "data-store", "topLevel": true }
+  ],
+  "edgeTypes": [
+    { "name": "depends-on" },
+    { "name": "contains" },
+    { "name": "implements" },
+    { "name": "exposes" },
+    { "name": "calls" },
+    { "name": "imports" },
+    { "name": "reads-from" },
+    { "name": "writes-to" },
+    { "name": "passes-through" }
+  ]
+}

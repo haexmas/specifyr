@@ -61,3 +61,57 @@ describe("saveSoll (happy path)", () => {
     ).rejects.toThrow(/unsupported node type/);
   });
 });
+
+describe("saveSoll (cleanup)", () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), "specifyr-cleanup-"));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it("removes a component folder that is no longer in the model", async () => {
+    await saveSoll(repoRoot, {
+      meta: { source: "soll" },
+      nodes: [
+        { id: "auth", type: "component", name: "Auth", classes: [] },
+        { id: "users", type: "component", name: "Users", classes: [] },
+      ],
+      edges: [],
+    });
+
+    await saveSoll(repoRoot, {
+      meta: { source: "soll" },
+      nodes: [{ id: "auth", type: "component", name: "Auth", classes: [] }],
+      edges: [],
+    });
+
+    const soll = join(repoRoot, ".specifyr", "soll");
+    expect(existsSync(join(soll, "components", "users"))).toBe(false);
+    expect(existsSync(join(soll, "components", "auth", "component.json"))).toBe(true);
+  });
+
+  it("removes an external file that is no longer in the model", async () => {
+    await saveSoll(repoRoot, {
+      meta: { source: "soll" },
+      nodes: [
+        { id: "stripe", type: "external-service", name: "Stripe", classes: [] },
+        { id: "postgres", type: "data-store", name: "Postgres", classes: [] },
+      ],
+      edges: [],
+    });
+
+    await saveSoll(repoRoot, {
+      meta: { source: "soll" },
+      nodes: [{ id: "postgres", type: "data-store", name: "Postgres", classes: [] }],
+      edges: [],
+    });
+
+    const soll = join(repoRoot, ".specifyr", "soll");
+    expect(existsSync(join(soll, "external", "stripe.json"))).toBe(false);
+    expect(existsSync(join(soll, "external", "postgres.json"))).toBe(true);
+  });
+});

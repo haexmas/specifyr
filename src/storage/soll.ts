@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 
 import type { Edge, Model, Node } from "../core/schemas.ts";
 import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.ts";
@@ -79,5 +79,38 @@ export async function saveSoll(repoRoot: string, model: Model): Promise<void> {
         ? resolveInsideRoot(root, [bucket, node.id, "component.json"])
         : resolveInsideRoot(root, [bucket, `${node.id}.json`]);
     await writeJsonAtomic(path, node);
+  }
+
+  const keptComponents = new Set<string>();
+  const keptExternal = new Set<string>();
+  for (const node of parsed.nodes) {
+    const { bucket, layout } = bucketForNode(node);
+    if (bucket === "components" && layout === "folder") {
+      keptComponents.add(node.id);
+    } else if (bucket === "external" && layout === "file") {
+      keptExternal.add(`${node.id}.json`);
+    }
+  }
+
+  await pruneDirectory(
+    resolveInsideRoot(root, ["components"]),
+    (name) => keptComponents.has(name),
+    { rmDir: true },
+  );
+  await pruneDirectory(resolveInsideRoot(root, ["external"]), (name) => keptExternal.has(name), {
+    rmDir: false,
+  });
+}
+
+async function pruneDirectory(
+  path: string,
+  keep: (name: string) => boolean,
+  options: { rmDir: boolean },
+): Promise<void> {
+  const entries = await listDir(path);
+  for (const entry of entries) {
+    if (keep(entry)) continue;
+    const target = resolveInsideRoot(path, [entry]);
+    await rm(target, { recursive: options.rmDir, force: true });
   }
 }

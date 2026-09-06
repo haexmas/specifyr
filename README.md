@@ -25,11 +25,21 @@ pnpm lint
 pnpm test
 ```
 
+## Usage
+
+After building (`pnpm build`), the CLI is available as `pnpm specifyr`:
+
+    pnpm specifyr init ./my-repo
+    pnpm specifyr status ./my-repo
+
+Or install globally (once published to npm) with `npm i -g specifyr`.
+
 ## Status
 
 Slice 1: repo skeleton, core Zod model, tests, CI. ✅
-Slice 2 (current): SOLL storage layer — load/save `.specifyr/soll/` under a repo root. ✅
-Slice 3+ (planned): rules evaluator, CLI, Nitro editor, MCP endpoint.
+Slice 2: SOLL storage layer — load/save `.specifyr/soll/` under a repo root. ✅
+Slice 3 (current): CLI skeleton — `specifyr init` and `specifyr status`. ✅
+Slice 4+ (planned): rules evaluator, Nitro editor, MCP endpoint, extractors.
 
 ## License
 

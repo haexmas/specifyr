@@ -1,7 +1,8 @@
-import { readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 
 import type { Edge, Model, Node } from "../core/schemas.ts";
 import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.ts";
+import { bucketForNode } from "./bucket.ts";
 import { sollRoot as computeSollRoot, resolveInsideRoot } from "./paths.ts";
 
 async function readJson(path: string): Promise<unknown> {
@@ -21,6 +22,15 @@ async function listDir(path: string): Promise<string[]> {
     if (err.code === "ENOENT") return [];
     throw cause;
   }
+}
+
+async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  const dir = path.slice(0, path.lastIndexOf("/"));
+  await mkdir(dir, { recursive: true });
+  const payload = `${JSON.stringify(value, null, 2)}\n`;
+  const tmp = `${path}.tmp-${process.pid}-${Date.now()}`;
+  await writeFile(tmp, payload, "utf8");
+  await rename(tmp, path);
 }
 
 export async function loadSoll(repoRoot: string): Promise<Model> {
@@ -52,4 +62,22 @@ export async function loadSoll(repoRoot: string): Promise<Model> {
   }
 
   return ModelSchema.parse({ meta, nodes, edges });
+}
+
+export async function saveSoll(repoRoot: string, model: Model): Promise<void> {
+  const parsed = ModelSchema.parse(model);
+  const root = computeSollRoot(repoRoot);
+  await mkdir(root, { recursive: true });
+
+  await writeJsonAtomic(resolveInsideRoot(root, ["_meta.json"]), parsed.meta);
+  await writeJsonAtomic(resolveInsideRoot(root, ["_index.json"]), { edges: parsed.edges });
+
+  for (const node of parsed.nodes) {
+    const { bucket, layout } = bucketForNode(node);
+    const path =
+      layout === "folder"
+        ? resolveInsideRoot(root, [bucket, node.id, "component.json"])
+        : resolveInsideRoot(root, [bucket, `${node.id}.json`]);
+    await writeJsonAtomic(path, node);
+  }
 }

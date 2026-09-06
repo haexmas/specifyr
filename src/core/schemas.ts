@@ -33,3 +33,16 @@ export const NodeSchema = z
   .catchall(z.unknown());
 
 export type Node = z.infer<typeof NodeSchema>;
+
+export const EdgeSchema = z.object({
+  id: z.string().min(1),
+  from: z.string().regex(NODE_ID_PATTERN, {
+    message: "edge.from must match the node id pattern",
+  }),
+  to: z.string().regex(NODE_ID_PATTERN, {
+    message: "edge.to must match the node id pattern",
+  }),
+  type: z.string().min(1),
+});
+
+export type Edge = z.infer<typeof EdgeSchema>;

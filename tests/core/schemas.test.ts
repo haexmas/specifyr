@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClassSchema, NodeSchema } from "../../src/core/schemas.ts";
+import { ClassSchema, EdgeSchema, NodeSchema } from "../../src/core/schemas.ts";
 
 describe("ClassSchema", () => {
   it("accepts a class with methods and attributes", () => {
@@ -66,5 +66,27 @@ describe("NodeSchema", () => {
 
   it("rejects an id starting with a hyphen", () => {
     expect(() => NodeSchema.parse({ id: "-bad", type: "component", name: "x" })).toThrow();
+  });
+});
+
+describe("EdgeSchema", () => {
+  it("accepts a well-formed edge", () => {
+    const parsed = EdgeSchema.parse({
+      id: "edge-1",
+      from: "auth",
+      to: "users",
+      type: "depends-on",
+    });
+    expect(parsed.from).toBe("auth");
+  });
+
+  it("rejects an edge missing from/to", () => {
+    expect(() => EdgeSchema.parse({ id: "edge-1", type: "depends-on" })).toThrow();
+  });
+
+  it("rejects an edge whose `from` violates the id pattern", () => {
+    expect(() =>
+      EdgeSchema.parse({ id: "edge-1", from: "../nope", to: "users", type: "calls" }),
+    ).toThrow();
   });
 });

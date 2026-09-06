@@ -72,3 +72,41 @@ describe("loadSoll (happy path)", () => {
     expect(model.nodes.map((n) => n.id)).toEqual(["alpha", "middle", "zeta"]);
   });
 });
+
+describe("loadSoll (error paths)", () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), "specifyr-load-err-"));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it("throws a clear error when .specifyr/soll/_meta.json is missing", async () => {
+    await expect(loadSoll(repoRoot)).rejects.toThrow(/_meta\.json/);
+  });
+
+  it("throws a clear error when _meta.json is malformed JSON", async () => {
+    const soll = join(repoRoot, ".specifyr", "soll");
+    mkdirSync(soll, { recursive: true });
+    writeFileSync(join(soll, "_meta.json"), "{ not json");
+    writeFileSync(join(soll, "_index.json"), '{ "edges": [] }');
+
+    await expect(loadSoll(repoRoot)).rejects.toThrow(/failed to parse/i);
+  });
+
+  it("propagates a Zod error when a component.json fails schema validation", async () => {
+    const soll = join(repoRoot, ".specifyr", "soll");
+    mkdirSync(join(soll, "components", "auth"), { recursive: true });
+    writeJson(join(soll, "_meta.json"), { source: "soll" });
+    writeJson(join(soll, "_index.json"), { edges: [] });
+    writeJson(join(soll, "components", "auth", "component.json"), {
+      id: "auth",
+      // missing required "type" and "name"
+    });
+
+    await expect(loadSoll(repoRoot)).rejects.toThrow();
+  });
+});

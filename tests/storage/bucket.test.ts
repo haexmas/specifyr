@@ -1,39 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { bucketForNode, SUPPORTED_NODE_TYPES } from "../../src/storage/bucket.ts";
+import { SUPPORTED_NODE_TYPES, bucketForNode } from "../../src/storage/bucket.ts";
 
 describe("bucketForNode", () => {
   it("maps component to components/ folder layout", () => {
-    expect(bucketForNode({ id: "auth", type: "component", name: "Auth" })).toEqual({
+    expect(bucketForNode({ type: "component" })).toEqual({
       bucket: "components",
       layout: "folder",
     });
   });
 
   it("maps module to components/ folder layout", () => {
-    expect(bucketForNode({ id: "core", type: "module", name: "Core" })).toEqual({
+    expect(bucketForNode({ type: "module" })).toEqual({
       bucket: "components",
       layout: "folder",
     });
   });
 
   it("maps external-service to external/ file layout", () => {
-    expect(bucketForNode({ id: "stripe", type: "external-service", name: "Stripe" })).toEqual({
+    expect(bucketForNode({ type: "external-service" })).toEqual({
       bucket: "external",
       layout: "file",
     });
   });
 
   it("maps data-store to external/ file layout", () => {
-    expect(bucketForNode({ id: "postgres", type: "data-store", name: "Postgres" })).toEqual({
+    expect(bucketForNode({ type: "data-store" })).toEqual({
       bucket: "external",
       layout: "file",
     });
   });
 
   it("throws for an unknown node type and lists supported types in the message", () => {
-    expect(() =>
-      bucketForNode({ id: "auth", type: "person", name: "Auth" }),
-    ).toThrow(/person.*supported.*component/i);
+    expect(() => bucketForNode({ type: "person" })).toThrow(/person.*supported.*component/i);
   });
 
   it("exposes the supported set for callers that need to whitelist upfront", () => {

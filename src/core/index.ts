@@ -8,7 +8,7 @@ export {
   ModelSchema,
   NODE_ID_PATTERN,
   NodeSchema,
-} from "./schemas.ts";
+} from "./schemas.js";
 export type {
   Attribute,
   Class,
@@ -19,7 +19,7 @@ export type {
   ModelNode,
   ModelSource,
   Node,
-} from "./schemas.ts";
+} from "./schemas.js";
 
 export {
   AttributeDefinitionSchema,
@@ -27,10 +27,10 @@ export {
   PackNameSchema,
   SHIPPED_PACKS,
   VocabularyConfigSchema,
-} from "./vocabulary.ts";
+} from "./vocabulary.js";
 export type {
   AttributeDefinition,
   CustomType,
   PackName,
   VocabularyConfig,
-} from "./vocabulary.ts";
+} from "./vocabulary.js";

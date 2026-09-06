@@ -19,6 +19,7 @@ for the full design and the plan for later slices.
 ```bash
 corepack enable
 pnpm install
+pnpm build
 pnpm typecheck
 pnpm lint
 pnpm test

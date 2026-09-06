@@ -56,6 +56,9 @@ def run_benchmark(
     if runs < 1:
         raise ValueError("runs must be positive")
 
+    for case in cases:
+        if not isinstance(case, dict) or not isinstance(case.get("id"), str) or "model" not in case:
+            raise ValueError("each corpus case requires a string id and a model")
     expected = {case["id"]: set(case.get("expected_categories", [])) for case in cases}
     formal_predictions: dict[str, set[str]] = {}
     baseline_predictions: dict[str, set[str]] = {}
@@ -120,7 +123,12 @@ def run_benchmark(
             case_id: set(categories)
             for case_id, categories in external_baseline["predictions"].items()
         }
-        runners[str(external_baseline.get("name", "external_baseline"))] = {
+        external_name = str(external_baseline.get("name", "external_baseline"))
+        if external_name in runners:
+            raise ValueError(
+                f"external baseline name conflicts with a built-in runner: {external_name}"
+            )
+        runners[external_name] = {
             **_score(expected, external_predictions),
             "deterministic": False,
             "evidence_rate": external_baseline.get("evidence_rate"),

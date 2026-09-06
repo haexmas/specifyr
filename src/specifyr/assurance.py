@@ -21,6 +21,8 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
     actual_by_case: dict[str, set[str]] = {}
     validated_models: dict[str, dict[str, Any]] = {}
     for case in cases:
+        if not isinstance(case, dict) or not isinstance(case.get("id"), str) or "model" not in case:
+            raise ValueError("each corpus case requires a string id and a model")
         case_id = case["id"]
         model = validate_model(case["model"])
         validated_models[case_id] = model
@@ -56,7 +58,7 @@ def verify_rule_pack(rule_pack_data: Any, corpus_data: Any) -> dict[str, Any]:
                 finding["rule_id"]
                 for finding in evaluate_rules(model, rules, disabled=frozenset({rule_id}))
             }
-            if mutated != expected_by_case[case_id]:
+            if mutated != actual_by_case[case_id]:
                 mutation_detected = True
                 break
         if mutation_detected:

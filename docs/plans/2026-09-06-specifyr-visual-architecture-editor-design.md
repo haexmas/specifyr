@@ -181,6 +181,11 @@ Rules:
 - One folder per top-level Component, Module, ExternalService, or DataStore.
 - Folder name equals architectural node id (unique in SOLL). Rename = folder
   rename = atomic git op.
+- Node IDs are a single safe path segment: match `^[a-z0-9][a-z0-9_-]{0,63}$`.
+  IDs are never joined into paths without validating this shape, and the
+  resolved path must remain below the SOLL storage root. `propose_patch`
+  rejects any node whose id fails this check before persisting it, so an
+  input like `../../.mcp.json` cannot escape the SOLL tree.
 - Intra-component edges live in the component folder. Cross-component edges
   live centrally in `_index.json`.
 - `_layout.json` is central to survive node renames.

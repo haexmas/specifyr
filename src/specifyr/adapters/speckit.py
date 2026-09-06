@@ -129,6 +129,18 @@ def extract_project(root: Path) -> dict[str, Any]:
     relations: list[dict[str, Any]] = []
     by_path: dict[Path, str] = {}
     texts: dict[Path, str] = {}
+    claim_ids: set[str] = set()
+    claim_anchors: set[tuple[str, str]] = set()
+
+    def _register(claim: dict[str, Any], path_str: str) -> None:
+        claim_id = claim.get("id")
+        if isinstance(claim_id, str):
+            claim_ids.add(claim_id)
+        source = claim.get("source")
+        if isinstance(source, dict):
+            anchor = source.get("anchor")
+            if isinstance(anchor, str):
+                claim_anchors.add((path_str, anchor))
 
     for path in paths:
         relative = path.relative_to(root)
@@ -151,21 +163,20 @@ def extract_project(root: Path) -> dict[str, Any]:
         block_claims, block_relations = _read_formal_blocks(
             text, relative, artifact_status=artifact_status
         )
-        claims.extend(block_claims)
+        for block_claim in block_claims:
+            claims.append(block_claim)
+            _register(block_claim, relative.as_posix())
         relations.extend(block_relations)
         for match in _REQUIREMENT_RE.finditer(text):
             generated = _claim_from_requirement(
                 match.group(1), match.group(2), relative, status=artifact_status
             )
-            if not any(
-                claim.get("id") == generated["id"]
-                or (
-                    isinstance(claim.get("source"), dict)
-                    and claim["source"].get("anchor") == match.group(1)
-                )
-                for claim in claims
-            ):
-                claims.append(generated)
+            anchor_key = (relative.as_posix(), match.group(1))
+            if generated["id"] in claim_ids or anchor_key in claim_anchors:
+                continue
+            claim_ids.add(generated["id"])
+            claim_anchors.add(anchor_key)
+            claims.append(generated)
 
     relation_number = len(relations)
     for path, text in texts.items():

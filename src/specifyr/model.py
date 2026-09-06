@@ -63,7 +63,11 @@ def validate_model(data: Any) -> dict[str, Any]:
 
     all_ids: set[str] = set()
     for group in (artifacts, claims):
-        all_ids.update(str(item["id"]) for item in group)
+        for item in group:
+            item_id = str(item["id"])
+            if item_id in all_ids:
+                raise ContractError(f"duplicate id {item_id!r} across artifacts and claims")
+            all_ids.add(item_id)
 
     for index, raw in enumerate(artifacts):
         item = _required_object(raw, f"model.artifacts[{index}]")

@@ -53,6 +53,7 @@ describe("resolveVocabulary", () => {
       name: "component",
       sources: ["generic", "custom"],
     });
+    expect(resolved.nodeTypes.get("component")?.topLevel).toBe(true);
   });
 
   it("preserves the first-seen definition when a collision occurs", async () => {
@@ -61,5 +62,17 @@ describe("resolveVocabulary", () => {
       customTypes: [],
     });
     expect(resolved.nodeTypes.get("component")?.topLevel).toBe(true);
+  });
+
+  it("preserves attributes on custom types", async () => {
+    const resolved = await resolveVocabulary({
+      activePacks: ["generic"],
+      customTypes: [
+        { kind: "node", name: "gateway", attributes: [{ name: "port", type: "number" }] },
+      ],
+    });
+    expect(resolved.nodeTypes.get("gateway")?.attributes).toEqual([
+      { name: "port", type: "number" },
+    ]);
   });
 });

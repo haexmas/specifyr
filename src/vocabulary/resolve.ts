@@ -14,6 +14,14 @@ export interface ResolvedVocabulary {
   collisions: Collision[];
 }
 
+/**
+ * Resolves packs in the order given by `config.activePacks`. First-seen wins;
+ * collision `sources` are listed in that same order. Callers relying on
+ * "generic is authoritative" should list it first.
+ *
+ * Custom types are processed after all packs; a custom type sharing a pack
+ * type's name is recorded as a collision and the pack's definition is kept.
+ */
 export async function resolveVocabulary(config: VocabularyConfig): Promise<ResolvedVocabulary> {
   const nodeTypes = new Map<string, NodeTypeDefinition>();
   const edgeTypes = new Map<string, EdgeTypeDefinition>();

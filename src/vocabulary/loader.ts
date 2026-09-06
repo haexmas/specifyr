@@ -17,7 +17,3 @@ export async function loadPack(name: PackName): Promise<VocabularyPack> {
   const raw = await readFile(path, "utf8");
   return VocabularyPackSchema.parse(JSON.parse(raw));
 }
-
-export function packsDirectory(): string {
-  return PACKS_DIR;
-}

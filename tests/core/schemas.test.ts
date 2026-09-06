@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClassSchema, EdgeSchema, NodeSchema } from "../../src/core/schemas.ts";
+import { ClassSchema, EdgeSchema, ModelSchema, NodeSchema } from "../../src/core/schemas.ts";
 
 describe("ClassSchema", () => {
   it("accepts a class with methods and attributes", () => {
@@ -59,9 +59,7 @@ describe("NodeSchema", () => {
   });
 
   it("rejects a node id that violates the safe-path-segment rule", () => {
-    expect(() =>
-      NodeSchema.parse({ id: "../escape", type: "component", name: "x" }),
-    ).toThrow();
+    expect(() => NodeSchema.parse({ id: "../escape", type: "component", name: "x" })).toThrow();
   });
 
   it("rejects an id starting with a hyphen", () => {
@@ -87,6 +85,49 @@ describe("EdgeSchema", () => {
   it("rejects an edge whose `from` violates the id pattern", () => {
     expect(() =>
       EdgeSchema.parse({ id: "edge-1", from: "../nope", to: "users", type: "calls" }),
+    ).toThrow();
+  });
+});
+
+describe("ModelSchema", () => {
+  it("accepts a well-formed SOLL model", () => {
+    const parsed = ModelSchema.parse({
+      nodes: [
+        { id: "auth", type: "component", name: "Auth" },
+        { id: "users", type: "component", name: "Users" },
+      ],
+      edges: [{ id: "e1", from: "auth", to: "users", type: "depends-on" }],
+      meta: { source: "soll" },
+    });
+    expect(parsed.meta.source).toBe("soll");
+  });
+
+  it("rejects duplicate node ids", () => {
+    expect(() =>
+      ModelSchema.parse({
+        nodes: [
+          { id: "auth", type: "component", name: "Auth" },
+          { id: "auth", type: "component", name: "Auth 2" },
+        ],
+        edges: [],
+        meta: { source: "soll" },
+      }),
+    ).toThrow(/duplicate node id/);
+  });
+
+  it("rejects an edge whose from does not reference a known node", () => {
+    expect(() =>
+      ModelSchema.parse({
+        nodes: [{ id: "auth", type: "component", name: "Auth" }],
+        edges: [{ id: "e1", from: "ghost", to: "auth", type: "depends-on" }],
+        meta: { source: "soll" },
+      }),
+    ).toThrow(/edge.*ghost/);
+  });
+
+  it("rejects an unknown meta.source", () => {
+    expect(() =>
+      ModelSchema.parse({ nodes: [], edges: [], meta: { source: "unknown" } }),
     ).toThrow();
   });
 });

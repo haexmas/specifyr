@@ -1,0 +1,5 @@
+{
+  "name": "c",
+  "nodeTypes": [{ "name": "translation-unit" }, { "name": "function" }, { "name": "struct" }],
+  "edgeTypes": [{ "name": "includes" }, { "name": "calls" }]
+}

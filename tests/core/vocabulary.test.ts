@@ -59,4 +59,10 @@ describe("VocabularyConfigSchema", () => {
       }),
     ).toThrow(/duplicate/);
   });
+
+  it("rejects duplicate entries in activePacks", () => {
+    expect(() => VocabularyConfigSchema.parse({ activePacks: ["generic", "generic"] })).toThrow(
+      /unique/i,
+    );
+  });
 });

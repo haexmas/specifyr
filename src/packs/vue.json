@@ -1,0 +1,17 @@
+{
+  "name": "vue",
+  "nodeTypes": [
+    { "name": "component" },
+    { "name": "composable" },
+    { "name": "store" },
+    { "name": "route" },
+    { "name": "plugin" }
+  ],
+  "edgeTypes": [
+    { "name": "imports" },
+    { "name": "emits" },
+    { "name": "provides" },
+    { "name": "injects" },
+    { "name": "uses-composable" }
+  ]
+}

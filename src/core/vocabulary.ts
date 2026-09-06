@@ -41,7 +41,12 @@ export const CustomTypeSchema = z.object({
 
 export const VocabularyConfigSchema = z
   .object({
-    activePacks: z.array(PackNameSchema).min(1),
+    activePacks: z
+      .array(PackNameSchema)
+      .min(1)
+      .refine((packs) => new Set(packs).size === packs.length, {
+        message: "activePacks must be unique",
+      }),
     customTypes: z.array(CustomTypeSchema).default([]),
   })
   .check((ctx) => {

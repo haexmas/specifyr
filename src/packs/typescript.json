@@ -1,0 +1,17 @@
+{
+  "name": "typescript",
+  "nodeTypes": [
+    { "name": "module" },
+    { "name": "class" },
+    { "name": "interface" },
+    { "name": "type-alias" },
+    { "name": "enum" },
+    { "name": "function" }
+  ],
+  "edgeTypes": [
+    { "name": "imports" },
+    { "name": "extends" },
+    { "name": "implements" },
+    { "name": "calls" }
+  ]
+}

@@ -39,8 +39,9 @@ Or install globally (once published to npm) with `npm i -g specifyr`.
 
 Slice 1: repo skeleton, core Zod model, tests, CI. ✅
 Slice 2: SOLL storage layer — load/save `.specifyr/soll/` under a repo root. ✅
-Slice 3 (current): CLI skeleton — `specifyr init` and `specifyr status`. ✅
-Slice 4+ (planned): rules evaluator, Nitro editor, MCP endpoint, extractors.
+Slice 3: CLI skeleton — `specifyr init` and `specifyr status`. ✅
+Slice 4 (current): vocabulary packs v1 — ten shipped language packs + loader + resolver. ✅
+Slice 5+ (planned): rules evaluator, Nitro editor, MCP endpoint, extractors.
 
 ## License
 

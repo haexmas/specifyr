@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClassSchema } from "../../src/core/schemas.ts";
+import { ClassSchema, NodeSchema } from "../../src/core/schemas.ts";
 
 describe("ClassSchema", () => {
   it("accepts a class with methods and attributes", () => {
@@ -21,5 +21,50 @@ describe("ClassSchema", () => {
     const parsed = ClassSchema.parse({ name: "Empty" });
     expect(parsed.methods).toEqual([]);
     expect(parsed.attributes).toEqual([]);
+  });
+});
+
+describe("NodeSchema", () => {
+  it("accepts a minimal node", () => {
+    const parsed = NodeSchema.parse({
+      id: "auth",
+      type: "component",
+      name: "Auth",
+    });
+    expect(parsed.id).toBe("auth");
+    expect(parsed.classes).toEqual([]);
+  });
+
+  it("carries through optional description, path, and classes", () => {
+    const parsed = NodeSchema.parse({
+      id: "auth",
+      type: "component",
+      name: "Auth",
+      description: "handles session lifecycle",
+      path: "src/auth/",
+      classes: [{ name: "AuthService" }],
+    });
+    expect(parsed.description).toBe("handles session lifecycle");
+    expect(parsed.classes[0]?.name).toBe("AuthService");
+  });
+
+  it("preserves extra vocabulary-driven attributes", () => {
+    const parsed = NodeSchema.parse({
+      id: "gateway",
+      type: "gateway",
+      name: "API Gateway",
+      protocol: "http",
+    });
+    expect((parsed as Record<string, unknown>).protocol).toBe("http");
+  });
+
+  it("rejects a node id that violates the safe-path-segment rule", () => {
+    expect(() =>
+      NodeSchema.parse({ id: "../escape", type: "component", name: "x" }),
+    ).toThrow();
+  });
+
+  it("rejects an id starting with a hyphen", () => {
+    expect(() => NodeSchema.parse({ id: "-bad", type: "component", name: "x" })).toThrow();
   });
 });

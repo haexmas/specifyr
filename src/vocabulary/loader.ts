@@ -11,6 +11,13 @@ import type { VocabularyPack } from "./pack.js";
 // From dist/vocabulary/loader.js after tsc emit + copy step → dist/packs/.
 const PACKS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "packs");
 
+/**
+ * Load and validate a vocabulary pack by name from the bundled pack directory.
+ *
+ * Reads the pack JSON file, parses it, and validates it against the
+ * VocabularyPackSchema. Throws if the pack name is invalid or if the pack
+ * file cannot be read or validated.
+ */
 export async function loadPack(name: PackName): Promise<VocabularyPack> {
   const validName = PackNameSchema.parse(name);
   const path = join(PACKS_DIR, `${validName}.json`);

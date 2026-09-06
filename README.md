@@ -27,8 +27,9 @@ pnpm test
 
 ## Status
 
-Slice 1 (current): repo skeleton, core Zod model, tests, CI.
-Slice 2+ (planned): SOLL storage, rules evaluator, CLI, Nitro editor, MCP endpoint.
+Slice 1: repo skeleton, core Zod model, tests, CI. ✅
+Slice 2 (current): SOLL storage layer — load/save `.specifyr/soll/` under a repo root. ✅
+Slice 3+ (planned): rules evaluator, CLI, Nitro editor, MCP endpoint.
 
 ## License
 

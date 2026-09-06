@@ -3,7 +3,7 @@ import { formatInitReport, formatStatusReport } from "../../src/cli/report.js";
 
 describe("formatInitReport", () => {
   it("mentions the repo path where SOLL was created", () => {
-    const output = formatInitReport({ repoPath: "/tmp/repo", createdEmpty: true });
+    const output = formatInitReport({ repoPath: "/tmp/repo" });
     expect(output).toMatch(/\/tmp\/repo/);
     expect(output).toMatch(/created/i);
   });
@@ -24,8 +24,8 @@ describe("formatStatusReport", () => {
     expect(output).toMatch(/\/tmp\/repo/);
     expect(output).toMatch(/source:\s+soll/);
     expect(output).toMatch(/2026-09-06T12:00:00Z/);
-    expect(output).toMatch(/component:\s+2/);
-    expect(output).toMatch(/data-store:\s+1/);
+    expect(output).toMatch(/component\s+2/);
+    expect(output).toMatch(/data-store\s+1/);
     expect(output).toMatch(/nodes:\s+3/);
     expect(output).toMatch(/edges:\s+1/);
   });

@@ -1,3 +1,6 @@
+import { stat } from "node:fs/promises";
+
+import { sollRoot } from "../../storage/paths.js";
 import { loadSoll, saveSoll } from "../../storage/soll.js";
 import type { InitReport } from "../report.js";
 
@@ -8,7 +11,9 @@ export interface InitOptions {
 export async function runInit(options: InitOptions): Promise<InitReport> {
   const { repoPath } = options;
 
-  try {
+  const sollExists = await sollDirectoryExists(repoPath);
+
+  if (sollExists) {
     const existing = await loadSoll(repoPath);
     if (existing.nodes.length > 0 || existing.edges.length > 0) {
       throw new Error(
@@ -16,9 +21,7 @@ export async function runInit(options: InitOptions): Promise<InitReport> {
           `Refusing to overwrite; ${existing.nodes.length} node(s) and ${existing.edges.length} edge(s) present.`,
       );
     }
-    return { repoPath, createdEmpty: true };
-  } catch (cause) {
-    if (!isMissingSollError(cause)) throw cause;
+    return { repoPath };
   }
 
   await saveSoll(repoPath, {
@@ -26,10 +29,15 @@ export async function runInit(options: InitOptions): Promise<InitReport> {
     nodes: [],
     edges: [],
   });
-  return { repoPath, createdEmpty: true };
+  return { repoPath };
 }
 
-function isMissingSollError(cause: unknown): boolean {
-  if (!(cause instanceof Error)) return false;
-  return /required file missing|ENOENT/.test(cause.message);
+async function sollDirectoryExists(repoPath: string): Promise<boolean> {
+  try {
+    const info = await stat(sollRoot(repoPath));
+    return info.isDirectory();
+  } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw cause;
+  }
 }

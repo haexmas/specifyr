@@ -16,7 +16,7 @@ export async function runStatus(options: StatusOptions): Promise<StatusReport> {
 
   const nodesByType: NodeTypeCount[] = Array.from(countsByType.entries())
     .map(([type, count]) => ({ type, count }))
-    .sort((a, b) => a.type.localeCompare(b.type));
+    .sort((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0));
 
   return {
     repoPath,

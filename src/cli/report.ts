@@ -2,7 +2,6 @@ import type { ModelMeta } from "../core/schemas.js";
 
 export interface InitReport {
   repoPath: string;
-  createdEmpty: boolean;
 }
 
 export interface NodeTypeCount {
@@ -31,7 +30,7 @@ export function formatStatusReport(report: StatusReport): string {
   }
   lines.push(`  nodes:        ${report.totalNodes}`);
   for (const { type, count } of report.nodesByType) {
-    lines.push(`    ${type}: ${count}`);
+    lines.push(`    ${type.padEnd(18)}${count}`);
   }
   lines.push(`  edges:        ${report.totalEdges}`);
   return `${lines.join("\n")}\n`;

@@ -1,8 +1,9 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runInit } from "../../../src/cli/commands/init.js";
+import { saveSoll } from "../../../src/storage/soll.js";
 
 describe("runInit", () => {
   let repoPath: string;
@@ -18,7 +19,7 @@ describe("runInit", () => {
   it("creates .specifyr/soll/ with an empty model and returns a report naming the path", async () => {
     const report = await runInit({ repoPath });
 
-    expect(report).toEqual({ repoPath, createdEmpty: true });
+    expect(report).toEqual({ repoPath });
 
     const soll = join(repoPath, ".specifyr", "soll");
     expect(existsSync(join(soll, "_meta.json"))).toBe(true);
@@ -33,19 +34,37 @@ describe("runInit", () => {
 
   it("refuses to overwrite an existing non-empty SOLL", async () => {
     await runInit({ repoPath });
-    const { saveSoll } = await import("../../../src/storage/soll.js");
     await saveSoll(repoPath, {
       meta: { source: "soll" },
       nodes: [{ id: "auth", type: "component", name: "Auth", classes: [] }],
       edges: [],
     });
 
-    await expect(runInit({ repoPath })).rejects.toThrow(/already initialized|not empty/i);
+    let error: unknown;
+    try {
+      await runInit({ repoPath });
+    } catch (cause) {
+      error = cause;
+    }
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toMatch(/already initialized/i);
+    expect(message).toMatch(/not empty/i);
+    expect(message).toMatch(/1 node/);
   });
 
   it("is idempotent when the existing SOLL is empty", async () => {
-    const first = await runInit({ repoPath });
-    const second = await runInit({ repoPath });
-    expect(second).toEqual(first);
+    await runInit({ repoPath });
+    const metaPath = join(repoPath, ".specifyr", "soll", "_meta.json");
+    const firstMtime = statSync(metaPath).mtimeMs;
+
+    // Sleep 20ms to ensure a re-write would change mtime on any FS.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    await runInit({ repoPath });
+    const secondMtime = statSync(metaPath).mtimeMs;
+
+    expect(secondMtime).toBe(firstMtime);
+    expect(existsSync(metaPath)).toBe(true);
   });
 });

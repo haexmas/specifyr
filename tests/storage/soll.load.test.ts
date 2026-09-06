@@ -109,4 +109,20 @@ describe("loadSoll (error paths)", () => {
 
     await expect(loadSoll(repoRoot)).rejects.toThrow();
   });
+
+  it("rejects an _index.json missing the edges key", async () => {
+    const soll = join(repoRoot, ".specifyr", "soll");
+    mkdirSync(soll, { recursive: true });
+    writeJson(join(soll, "_meta.json"), { source: "soll" });
+    writeJson(join(soll, "_index.json"), {});
+    await expect(loadSoll(repoRoot)).rejects.toThrow();
+  });
+
+  it("rejects an _index.json where edges is not an array", async () => {
+    const soll = join(repoRoot, ".specifyr", "soll");
+    mkdirSync(soll, { recursive: true });
+    writeJson(join(soll, "_meta.json"), { source: "soll" });
+    writeJson(join(soll, "_index.json"), { edges: "not-an-array" });
+    await expect(loadSoll(repoRoot)).rejects.toThrow();
+  });
 });

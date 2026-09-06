@@ -1,9 +1,16 @@
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+
+import { z } from "zod";
 
 import type { Edge, Model, Node } from "../core/schemas.ts";
 import { EdgeSchema, ModelMetaSchema, ModelSchema, NodeSchema } from "../core/schemas.ts";
 import { bucketForNode } from "./bucket.ts";
 import { sollRoot as computeSollRoot, resolveInsideRoot } from "./paths.ts";
+
+const IndexFileSchema = z.object({ edges: z.array(EdgeSchema) });
+
+const TMP_PATTERN = /\.tmp-\d+-\d+$/;
 
 async function readJson(path: string): Promise<unknown> {
   const raw = await readFile(path, "utf8");
@@ -25,7 +32,7 @@ async function listDir(path: string): Promise<string[]> {
 }
 
 async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
-  const dir = path.slice(0, path.lastIndexOf("/"));
+  const dir = dirname(path);
   await mkdir(dir, { recursive: true });
   const payload = `${JSON.stringify(value, null, 2)}\n`;
   const tmp = `${path}.tmp-${process.pid}-${Date.now()}`;
@@ -40,10 +47,8 @@ export async function loadSoll(repoRoot: string): Promise<Model> {
   const indexPath = resolveInsideRoot(root, ["_index.json"]);
 
   const meta = ModelMetaSchema.parse(await readJson(metaPath));
-  const indexRaw = (await readJson(indexPath)) as { edges?: unknown };
-  const edges: Edge[] = Array.isArray(indexRaw.edges)
-    ? indexRaw.edges.map((entry) => EdgeSchema.parse(entry))
-    : [];
+  const index = IndexFileSchema.parse(await readJson(indexPath));
+  const edges: Edge[] = index.edges;
 
   const nodes: Node[] = [];
 
@@ -110,7 +115,21 @@ async function pruneDirectory(
   const entries = await listDir(path);
   for (const entry of entries) {
     if (keep(entry)) continue;
-    const target = resolveInsideRoot(path, [entry]);
+    let target: string;
+    try {
+      target = resolveInsideRoot(path, [entry]);
+    } catch {
+      // Entry does not match the safe-segment pattern.
+      // Recover crashed-write tmp files; leave anything else alone.
+      if (TMP_PATTERN.test(entry)) {
+        try {
+          await rm(join(path, entry), { force: true });
+        } catch {
+          // best-effort tmp cleanup
+        }
+      }
+      continue;
+    }
     await rm(target, { recursive: options.rmDir, force: true });
   }
 }

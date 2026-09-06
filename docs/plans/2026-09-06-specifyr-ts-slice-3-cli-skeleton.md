@@ -29,7 +29,7 @@
 
 **User-facing behaviour Slice 3 ships:**
 
-```
+```text
 $ specifyr --help
 USAGE specifyr [OPTIONS] <command>
 

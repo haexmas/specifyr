@@ -61,7 +61,8 @@ describe("specifyr CLI (end-to-end)", () => {
   it("init followed by status walks the full flow", async () => {
     const init = await runCli(["init", repoPath]);
     expect(init.exitCode).toBe(0);
-    expect(init.stdout).toMatch(new RegExp(`Created .*${repoPath}`));
+    expect(init.stdout).toContain("Created .specifyr/soll/ under");
+    expect(init.stdout).toContain(repoPath);
 
     expect(existsSync(join(repoPath, ".specifyr", "soll", "_meta.json"))).toBe(true);
 

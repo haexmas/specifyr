@@ -2,9 +2,10 @@
 
 Visual architecture editor with SOLL/PLAN/IST drift-check, AI-assisted via MCP.
 
-`specifyr` v1 is under active TypeScript rewrite. This branch is the foundation
-slice: repo skeleton and core Zod schemas. It does not yet ship a CLI, an
-editor, or an MCP endpoint.
+`specifyr` v1 is under active TypeScript rewrite. This branch provides the
+foundation slice, core Zod schemas, and the first CLI commands (`specifyr init`
+and `specifyr status`). The editor and MCP endpoint are planned for later
+slices.
 
 See [docs/plans/2026-09-06-specifyr-visual-architecture-editor-design.md](docs/plans/2026-09-06-specifyr-visual-architecture-editor-design.md)
 for the full design and the plan for later slices.

@@ -34,5 +34,10 @@ export function resolveImport(
 }
 
 function isRelative(specifier: string): boolean {
-  return specifier.startsWith("./") || specifier.startsWith("../") || specifier === ".";
+  return (
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier === "." ||
+    specifier === ".."
+  );
 }

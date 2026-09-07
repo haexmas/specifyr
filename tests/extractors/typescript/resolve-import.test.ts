@@ -3,6 +3,7 @@ import { resolveImport } from "../../../src/extractors/typescript/resolve-import
 
 describe("resolveImport", () => {
   const files = new Set([
+    "src/index.ts",
     "src/core/schemas.ts",
     "src/core/index.ts",
     "src/storage/soll.ts",
@@ -28,6 +29,10 @@ describe("resolveImport", () => {
 
   it("resolves a directory index.ts", () => {
     expect(resolveImport("src/storage/soll.ts", "../core", files)).toBe("src/core/index.ts");
+  });
+
+  it("resolves a parent-directory index.ts from a bare '..' specifier", () => {
+    expect(resolveImport("src/storage/soll.ts", "..", files)).toBe("src/index.ts");
   });
 
   it("resolves a .tsx target", () => {

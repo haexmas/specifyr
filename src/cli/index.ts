@@ -60,7 +60,7 @@ const editorCommand = defineCommand({
     },
     port: {
       type: "string",
-      description: "Port to bind (default: 3939 or next free).",
+      description: "Port to bind (default: an automatically assigned free port).",
       required: false,
     },
     open: {

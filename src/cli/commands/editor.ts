@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import getPort, { portNumbers } from "get-port";
+import getPort from "get-port";
 import open from "open";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -112,7 +112,11 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     throw new Error(`Editor build not found at ${FRONTEND_SERVER}. Run \`pnpm build\` first.`);
   }
 
-  const port = options.port ?? (await getPort({ port: portNumbers(3939, 3999) }));
+  // Automatic ports must come from the OS-assigned ephemeral range. A
+  // preferred fixed range is race-prone when multiple CLI processes start at
+  // the same time: each process can observe the same port as free before
+  // either child binds it.
+  const port = options.port ?? (await getPort());
   if (options.port !== undefined) {
     const availablePort = await getPort({ port: options.port });
     if (availablePort !== options.port) {

@@ -11,3 +11,6 @@ graphify-out/cost.json
 frontend/.nuxt/
 frontend/.output/
 frontend/node_modules/
+
+# spaex advisory manifest lock
+.spaex.json.lock

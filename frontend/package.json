@@ -12,6 +12,7 @@
   "dependencies": {
     "@vue-flow/background": "1.3.2",
     "@vue-flow/core": "1.42.0",
+    "elkjs": "0.12.0",
     "specifyr": "workspace:*"
   },
   "devDependencies": {

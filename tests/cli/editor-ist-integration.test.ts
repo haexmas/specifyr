@@ -90,5 +90,19 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       expect(edge.type).toBe("imports");
       expect(edge.id).toMatch(/^tse-[0-9a-f]{12}$/);
     }
+
+    // Sanity check: the page bundle references ELK, so the layout composable
+    // is wired in. A regression that dropped useElkLayout would silently ship
+    // a build with the grid math again — this catches that.
+    const { readFileSync, readdirSync } = await import("node:fs");
+    const publicNuxt = resolve(process.cwd(), "frontend", ".output", "public", "_nuxt");
+    const bundles = readdirSync(publicNuxt).filter((n) => n.endsWith(".js"));
+    const anyMentionsElk = bundles.some((name) => {
+      const content = readFileSync(resolve(publicNuxt, name), "utf8");
+      return (
+        content.includes("elkjs") || content.includes("elk.algorithm") || content.includes("ELK")
+      );
+    });
+    expect(anyMentionsElk).toBe(true);
   }, 30000);
 });

@@ -9,11 +9,12 @@ const CLI_ENTRY = resolve(process.cwd(), "dist", "cli", "index.js");
 const FRONTEND_BUILD = resolve(process.cwd(), "frontend", ".output", "server", "index.mjs");
 
 /**
- * Removes Vitest-specific environment variables that can interfere with child
- * process console output.
+ * Removes NODE_ENV, TEST, and Vitest-specific environment variables that can
+ * interfere with child process console output, and always sets NO_COLOR to "1".
  *
  * @param env - The environment to clean.
- * @returns A clean environment without test-related variables.
+ * @returns A clean environment without NODE_ENV, TEST, or Vitest-specific
+ * variables, with NO_COLOR set to "1".
  */
 function stripVitestEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const {

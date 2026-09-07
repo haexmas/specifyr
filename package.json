@@ -9,7 +9,7 @@
   },
   "packageManager": "pnpm@9.15.0",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": ["dist", "frontend/.output"],
   "bin": {
     "specifyr": "dist/cli/index.js"
   },
@@ -28,9 +28,9 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-packs.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-packs.mjs && pnpm --filter specifyr-frontend build",
     "prepack": "pnpm build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && pnpm --filter specifyr-frontend typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -39,6 +39,8 @@
   },
   "dependencies": {
     "citty": "0.1.6",
+    "get-port": "7.1.0",
+    "open": "10.1.0",
     "zod": "4.0.0"
   },
   "devDependencies": {

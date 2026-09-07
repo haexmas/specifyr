@@ -79,10 +79,16 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     const body = (await res.json()) as {
       meta: { source: string };
       nodes: Array<{ type: string; name: string }>;
+      edges: Array<{ id: string; from: string; to: string; type: string }>;
     };
     expect(body.meta.source).toBe("ist");
     expect(body.nodes.length).toBeGreaterThan(10);
     const names = body.nodes.map((n) => n.name);
     expect(names).toContain("src/core/schemas.ts");
+    expect(body.edges.length).toBeGreaterThan(0);
+    for (const edge of body.edges) {
+      expect(edge.type).toBe("imports");
+      expect(edge.id).toMatch(/^tse-[0-9a-f]{12}$/);
+    }
   }, 30000);
 });

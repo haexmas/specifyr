@@ -43,6 +43,9 @@ export function modelToElkGraph(input: AdapterInput): ElkGraphInput {
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
     })),
+    // Edge ids come pre-deduped from Slice B (extractIst's `${from}::${to}::type`
+    // gate). If a later slice emits duplicates, ELK will reject them with an
+    // error — surface it, don't silently paper over.
     edges: input.edges
       .filter((e) => ids.has(e.from) && ids.has(e.to))
       .map((e) => ({
@@ -70,6 +73,13 @@ export function elkResultToPositions(
   result: ElkResultGraph,
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
+  // If ELK failed to position a child (should not happen with the `layered`
+  // algorithm on well-formed input), it renders at origin — nodes stack. We
+  // intentionally do not warn here to keep the module pure and dep-free; a
+  // future dev-only diagnostic could live in the composable.
+  // We only walk top-level children — this slice never produces hierarchical
+  // graphs (no ELK groups / compound nodes). A later slice adding hierarchy
+  // would need to recurse.
   for (const child of result.children ?? []) {
     positions.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
   }

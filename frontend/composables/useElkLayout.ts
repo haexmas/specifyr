@@ -19,8 +19,9 @@ export interface UseElkLayoutResult {
   error: Ref<Error | undefined>;
 }
 
-// One ELK instance per composable invocation — cheap, avoids sharing state
-// across concurrent SOLL/IST toggles.
+// One ELK instance per composable invocation. elk.bundled.js resolves to an
+// in-thread FakeWorker (no OS Web Worker), so there is nothing to terminate
+// on unmount — GC releases the closure when the composable's refs are dropped.
 export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutResult {
   const positions = ref(new Map<string, { x: number; y: number }>());
   const pending = ref(false);
@@ -34,10 +35,15 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
     }),
   );
 
-  watchEffect(async () => {
-    // Read the key so this effect re-fires whenever the input identity changes.
-    void inputKey.value;
+  let lastKey: string | undefined;
+  let runId = 0;
 
+  watchEffect(async () => {
+    const key = inputKey.value;
+    if (key === lastKey) return;
+    lastKey = key;
+
+    const myRun = ++runId;
     pending.value = true;
     error.value = undefined;
     try {
@@ -46,12 +52,15 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
       // adapter output, but the generic self-reference in ELK.layout confuses TS.
       // Cast the call site only — our own types stay strict.
       const laidOut = await elk.layout(graph as unknown as Parameters<typeof elk.layout>[0]);
+      if (myRun !== runId) return; // a newer run has started, discard stale result
       positions.value = elkResultToPositions(laidOut);
     } catch (cause) {
+      if (myRun !== runId) return; // discard stale error too
       error.value = cause instanceof Error ? cause : new Error(String(cause));
-      positions.value = new Map();
+      // Note: keeps the last-known-good positions instead of clearing them.
+      // Graceful ELK-failure UI is a non-goal; this at least avoids a blank canvas.
     } finally {
-      pending.value = false;
+      if (myRun === runId) pending.value = false;
     }
   });
 

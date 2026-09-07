@@ -7,10 +7,7 @@ export interface RawImport {
 }
 
 /** Extract every static `import ... from "..."` specifier from a source file. */
-export async function extractImports(
-  fromRelative: string,
-  source: string,
-): Promise<RawImport[]> {
+export async function extractImports(fromRelative: string, source: string): Promise<RawImport[]> {
   const tree = await parseTypeScript(source);
   const results: RawImport[] = [];
 

@@ -41,10 +41,7 @@ describe("extractImports", () => {
   });
 
   it("extracts imports even when preceded by comments", async () => {
-    const raw = await extractImports(
-      "src/foo.ts",
-      '// header comment\nimport { X } from "./x";\n',
-    );
+    const raw = await extractImports("src/foo.ts", '// header comment\nimport { X } from "./x";\n');
     expect(raw).toEqual([{ fromRelative: "src/foo.ts", specifier: "./x" }]);
   });
 
@@ -54,21 +51,14 @@ describe("extractImports", () => {
   });
 
   it("does NOT extract dynamic imports (Slice B is static imports only)", async () => {
-    const raw = await extractImports(
-      "src/foo.ts",
-      'const bar = () => import("./bar");\n',
-    );
+    const raw = await extractImports("src/foo.ts", 'const bar = () => import("./bar");\n');
     expect(raw).toEqual([]);
   });
 
   it("extracts external and node: specifiers too (resolver drops them later)", async () => {
     const raw = await extractImports(
       "src/foo.ts",
-      [
-        'import { readFile } from "node:fs/promises";',
-        'import { z } from "zod";',
-        "",
-      ].join("\n"),
+      ['import { readFile } from "node:fs/promises";', 'import { z } from "zod";', ""].join("\n"),
     );
     expect(raw.map((r) => r.specifier).sort()).toEqual(["node:fs/promises", "zod"]);
   });

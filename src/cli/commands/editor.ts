@@ -217,8 +217,8 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
       throw new Error(`Port ${options.port} is already in use.`);
     }
     const port = options.port;
-    const started = await startEditor(repoPath, port, (_child, url) =>
-      waitForHttpReady({ url, timeoutMs: EDITOR_READY_TIMEOUT_MS }),
+    const started = await startEditor(repoPath, port, (child, url) =>
+      waitForEditorReady(child, url),
     );
     const url = `http://127.0.0.1:${port}`;
 

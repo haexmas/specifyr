@@ -5,6 +5,7 @@ export interface DetailRow {
   value: string;
 }
 
+/** Format a model node as ordered rows for the details sidebar. */
 export function formatNodeDetails(node: Node): DetailRow[] {
   const rows: DetailRow[] = [
     { label: "id", value: node.id },

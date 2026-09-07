@@ -1,10 +1,13 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { Window } from "happy-dom";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { nodeTypeClasses } from "../../frontend/composables/node-type-classes.js";
 
 const CLI_ENTRY = resolve(process.cwd(), "dist", "cli", "index.js");
 const FRONTEND_BUILD = resolve(process.cwd(), "frontend", ".output", "server", "index.mjs");
+const PUBLIC_NUXT = resolve(process.cwd(), "frontend", ".output", "public", "_nuxt");
 
 function stripVitestEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const {
@@ -94,15 +97,93 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     // Sanity check: the page bundle references ELK, so the layout composable
     // is wired in. A regression that dropped useElkLayout would silently ship
     // a build with the grid math again — this catches that.
-    const { readFileSync, readdirSync } = await import("node:fs");
-    const publicNuxt = resolve(process.cwd(), "frontend", ".output", "public", "_nuxt");
-    const bundles = readdirSync(publicNuxt).filter((n) => n.endsWith(".js"));
+    const bundles = readdirSync(PUBLIC_NUXT).filter((n) => n.endsWith(".js"));
     const anyMentionsElk = bundles.some((name) => {
-      const content = readFileSync(resolve(publicNuxt, name), "utf8");
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
       return (
         content.includes("elkjs") || content.includes("elk.algorithm") || content.includes("ELK")
       );
     });
     expect(anyMentionsElk).toBe(true);
+
+    // Tailwind sanity check: the CSS bundle should contain at least one of the
+    // node-type utilities we mapped in nodeTypeClasses. A regression that
+    // dropped @tailwindcss/vite would ship the page unstyled.
+    const cssBundles = readdirSync(PUBLIC_NUXT).filter((n) => n.endsWith(".css"));
+    const anyMentionsTailwindColor = cssBundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("bg-blue-100") || content.includes("bg-purple-100");
+    });
+    expect(anyMentionsTailwindColor).toBe(true);
   }, 30000);
+
+  it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {
+    const css = readdirSync(PUBLIC_NUXT)
+      .filter((name) => name.endsWith(".css"))
+      .map((name) => readFileSync(resolve(PUBLIC_NUXT, name), "utf8"))
+      .join("\n");
+
+    const themeRule = css.match(/\.vue-flow__node-default\{[^}]*background:[^}]*\}/)?.[0];
+    expect(themeRule).toBeDefined();
+    // happy-dom does not resolve Tailwind's oklch custom properties, so only
+    // the generated utility declarations are normalized to known RGB values.
+    // Put Vue Flow's unlayered rule last to model the cascade that required
+    // the important Tailwind modifiers in the first place. Expand its
+    // background shorthand because happy-dom otherwise does not compare it
+    // correctly with an important background-color declaration.
+    const normalizedThemeRule = themeRule?.replace(
+      "background:var(--vf-node-bg)",
+      "background-color:#fff",
+    );
+
+    /** Extract a generated utility rule and replace its color variable for DOM evaluation. */
+    const utilityRule = (className: string, computedValue: string): string => {
+      const escapedClass = className.replace("!", "\\\\!");
+      const rule = css.match(new RegExp(`\\.${escapedClass}\\{[^}]+\\}`))?.[0];
+      expect(rule, `missing generated utility for ${className}`).toBeDefined();
+      return rule?.replace(/var\(--color-[^)]+\)/, computedValue) ?? "";
+    };
+
+    /** Return the mapped background and border utility classes for a node type. */
+    const mappedClasses = (type: string): [string, string] => {
+      const classes = nodeTypeClasses(type).split(" ");
+      const background = classes.find((className) => className.startsWith("bg-"));
+      const border = classes.find((className) => className.startsWith("border-"));
+      if (!background || !border) {
+        throw new Error(`incomplete color mapping for ${type}`);
+      }
+      return [background, border];
+    };
+
+    const [sollBackground, sollBorder] = mappedClasses("component");
+    const [istBackground, istBorder] = mappedClasses("class");
+    const stylesheet = [
+      utilityRule(sollBackground, "rgb(219 234 254)"),
+      utilityRule(sollBorder, "rgb(59 130 246)"),
+      utilityRule(istBackground, "rgb(243 232 255)"),
+      utilityRule(istBorder, "rgb(168 85 247)"),
+      normalizedThemeRule,
+    ].join("");
+
+    const browser = new Window();
+    const style = browser.document.createElement("style");
+    style.textContent = stylesheet;
+    browser.document.head.append(style);
+
+    const sollNode = browser.document.createElement("div");
+    sollNode.className = `vue-flow__node-default ${nodeTypeClasses("component")}`;
+    browser.document.body.append(sollNode);
+    const sollStyle = browser.getComputedStyle(sollNode);
+    expect(sollStyle.backgroundColor).toBe("rgb(219 234 254)");
+    expect(sollStyle.borderColor).toBe("rgb(59 130 246)");
+
+    const istNode = browser.document.createElement("div");
+    istNode.className = `vue-flow__node-default ${nodeTypeClasses("class")}`;
+    browser.document.body.append(istNode);
+    const istStyle = browser.getComputedStyle(istNode);
+    expect(istStyle.backgroundColor).toBe("rgb(243 232 255)");
+    expect(istStyle.borderColor).toBe("rgb(168 85 247)");
+
+    browser.close();
+  });
 });

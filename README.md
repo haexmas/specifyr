@@ -43,7 +43,10 @@ a `module` node, plus top-level `class` / `interface` / `type-alias` / `enum`
 / `function` nodes. `import ... from "./..."` statements are drawn as arrows
 between modules. Nodes are auto-laid out via ELK.js (`layered` algorithm,
 top-down) so imports flow from top to bottom; a brief "laying out…"
-indicator appears in the TopBar while ELK crunches larger graphs.
+indicator appears in the TopBar while ELK crunches larger graphs. Nodes are
+coloured by type: SOLL components stand out in blue, modules in green,
+external services in amber, data stores in pink; IST classes in purple,
+interfaces in indigo, type aliases in teal, enums in orange, functions in red.
 Extends/implements edges and per-symbol edges land in a later slice.
 
 Or install globally (once published to npm) with `npm i -g specifyr`.
@@ -57,8 +60,9 @@ Slice 4: vocabulary packs v1 — ten shipped language packs + loader + resolver.
 Slice X: read-only visual editor — `specifyr editor` opens a Vue Flow graph of the SOLL in the browser. ✅
 Slice A: TypeScript IST extractor via tree-sitter WASM (nodes only) + TopBar SOLL/IST segmenter. ✅
 Slice B: IST `imports` edges — module→module dependencies drawn as arrows in the Vue Flow graph. ✅
-Slice ELK (current): ELK.js `layered` auto-layout replaces the 4-column grid. ✅
-Slice C+ (planned): extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
+Slice ELK: ELK.js `layered` auto-layout replaces the 4-column grid. ✅
+Slice Tailwind (current): Tailwind CSS as editor styling primitive + per-node-type colors for SOLL and IST. ✅
+Slice C+ (planned): shadcn-vue / Pinia, extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
 
 ## License
 

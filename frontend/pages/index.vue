@@ -6,7 +6,10 @@ import type { Model } from "specifyr";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
-const { data, error, status } = useFetch<Model>("/api/soll");
+type ViewSource = "soll" | "ist";
+const view = ref<ViewSource>("soll");
+const endpoint = computed(() => (view.value === "soll" ? "/api/soll" : "/api/ist"));
+const { data, error, status } = useFetch<Model>(endpoint, { watch: [view] });
 
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
@@ -38,6 +41,22 @@ const flowEdges = computed<FlowEdge[]>(() => {
   <div class="editor-shell">
     <header class="editor-topbar">
       <strong>specifyr editor</strong>
+      <div class="editor-segmenter" role="group" aria-label="View source">
+        <button
+          type="button"
+          :class="{ 'is-active': view === 'soll' }"
+          @click="view = 'soll'"
+        >
+          SOLL
+        </button>
+        <button
+          type="button"
+          :class="{ 'is-active': view === 'ist' }"
+          @click="view = 'ist'"
+        >
+          IST
+        </button>
+      </div>
       <span v-if="data?.meta">
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
@@ -48,7 +67,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
       Error: {{ (error.data as { error?: string })?.error ?? error.message }}
     </div>
     <div v-else-if="!data?.nodes?.length" class="editor-status">
-      SOLL is empty — no nodes to display.
+      {{ view.toUpperCase() }} is empty — no nodes to display.
     </div>
     <div v-else class="editor-canvas">
       <VueFlow :nodes="flowNodes" :edges="flowEdges" :nodes-draggable="false" :nodes-connectable="false" :elements-selectable="false">
@@ -84,6 +103,28 @@ const flowEdges = computed<FlowEdge[]>(() => {
 .editor-canvas {
   flex: 1;
   min-height: 0;
+}
+.editor-segmenter {
+  display: inline-flex;
+  margin: 0 0.5rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.editor-segmenter button {
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #d4d4d8;
+  font: inherit;
+  cursor: pointer;
+}
+.editor-segmenter button:last-child {
+  border-right: none;
+}
+.editor-segmenter button.is-active {
+  background: #e4e4e7;
+  font-weight: 600;
 }
 </style>
 

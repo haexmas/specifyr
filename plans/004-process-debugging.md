@@ -42,9 +42,15 @@ Bedienung für ANALYZE:
    Quellstellen. Bei mehreren möglichen Einstiegspunkten auswählen lassen oder
    die konkrete Gruppe anzeigen. Der Debugger muss das Setzen bestätigen.
 3. „Nächste Artefakt-Auswahl verfolgen“ aktivieren und im ANALYZE-Browser
-   klicken. Der echte Request erreicht das Backend. Die aus Plan 002
-   bekannte Aktions-/Request-Korrelation verbindet diesen Eingang mit der
-   ausgewählten Frontend-Interaktion.
+   klicken. Dabei wird ein einmalig verwendbares `selectionToken` an Benutzer,
+   Frontend-Sitzung, Backend-Instanz, `DebugSession` und Build gebunden. Es
+   verfällt bei Abbruch, Sitzungsende oder nach einer kurzen TTL und wird beim
+   ersten exakt passenden Klick einmalig verbraucht. Beim Request-Start entsteht
+   ein eigener `requestChildKey`; die persistierte Zuordnung lautet
+   `selectionToken → actionParentKey → requestChildKey → eventKey`. Ein Retry
+   erhält einen neuen Request-Child-Key und darf das verbrauchte Token nicht
+   wiederverwenden. Der echte Request erreicht das Backend; zwei überlappende
+   Tokens bleiben getrennt.
 4. Das Backend hält an der vereinbarten Stelle. Der zugeordnete IST-Knoten
    wird markiert; der Inspector zeigt aktuelle Quellstelle, Callstack und die
    im pausierten Kontext verfügbaren Variablen (etwa Artefakt-ID und
@@ -52,7 +58,7 @@ Bedienung für ANALYZE:
 5. „Hinein“, „Darüber“, „Heraus“ und „Fortsetzen“ steuern den Backend-Debugger.
    Die IST-Markierung folgt der aktuell ausgeführten Implementierung. Mehrere
    Quellschritte können im selben Architekturbaustein bleiben. „Nächster
-   Baustein" ist eine spätere zusammengesetzte Operation mit bestätigten
+   Baustein“ ist eine spätere zusammengesetzte Operation mit bestätigten
    Zielbreakpoints, keine von DAP garantierte atomare Architektur-
    Schrittoperation.
 6. Bei Fortsetzung kann das Backend antworten; Frontend und Trace-Ansicht
@@ -68,15 +74,40 @@ Bedienung für ANALYZE:
 - Der Debugger steuert die Backend-Ausführung.
 - Quellzuordnung und Projektion zeigen diese Ausführung in IST.
 
+Jede Debuggeroperation prüft vor Ausführung Principal/Benutzer, Frontend-Sitzung,
+Backend-Instanz und `DebugSession`; Breakpoint-Ziel, Build und Snapshot müssen
+ebenfalls zu dieser Sitzung passen. Das gilt ausdrücklich für Breakpoint-
+Erstellung, `DebuggerStop`-Zustellung, Variableninspektion, Fortsetzen sowie
+Einzelschritte. Ein negativer Cross-Session-Test muss den Zugriff auf fremde
+Breakpoints, Stopps, Variablen und Steuerbefehle ablehnen, ohne ihre Inhalte
+preiszugeben.
+
 Ein Debugger-Stopp muss sofort angezeigt werden können, auch wenn der
 zugehörige Span noch offen und noch nicht exportiert ist. Der Debuggeradapter
 sendet dafür über einen direkten Live-Kanal eine `DebuggerStop`-Meldung mit dem
-aus Plan 002 übernommenen `correlationKey`, `buildId`, stopId und SourceRef;
-alternativ fragt die IST-Ansicht diesen Schlüssel live beim Adapter nach. Die
-Zuordnung darf nicht vom späteren Trace-Export abhängen. Später exportierte
-Spans werden über denselben Schlüssel ergänzt. Fehlt er, bleibt der Stopp
-sichtbar, aber nicht zugeordnet. DAP liefert eine Trace-/Request-Zuordnung nicht
-automatisch.
+eindeutigen Schlüssel (`debugSessionId`, `correlationKey`, `stopId`), Benutzer-,
+Frontend-Sitzungs- und Backend-Instanzbindung, `buildId`, stopSequence und
+SourceRef; alternativ fragt die IST-Ansicht diesen Schlüssel live beim Adapter
+nach. Das Zusammenführen ist anhand dieses Schlüssels idempotent: Retries und
+Duplikate erzeugen keine zweiten Stopps.
+
+Der Adapter führt pro DebugSession eine monotone stopSequence. Nach Reconnect
+werden nur Einträge ab der zuletzt bestätigten Sequenz erneut geliefert; die
+Ansicht zeigt bei Kanalverlust eine Diagnose und keinen still erfundenen Zustand.
+Läuft die konfigurierte Zustell- oder Lookup-Frist ab, bleibt der Zustand
+„Stop ausstehend“ mit einer sichtbaren Timeout-/Kanalverlustdiagnose bestehen;
+ein Stopp wird daraus nicht erraten. Ein späterer Reconnect darf nur über die
+Sequenzprüfung fortsetzen.
+Ein Stopp, der nach bestätigtem Fortsetzen oder einem Einzelschritt eintrifft,
+ist veraltet und wird nicht als aktueller Stopp angezeigt. Ein Lookup-Race wird
+über Sessionzustand und Sequenz entschieden: Fortsetzen gewinnt für Stopps, die
+noch nicht angenommen wurden; ein bereits angenommener Stopp bleibt bis zum
+Steuerbefehl offen.
+
+Später exportierte Spans dürfen nur den offenen Debuggerzustand mit exakt
+passendem `debugSessionId`, `correlationKey` und `stopId` ergänzen. Abgeschlossene
+oder fremde Sitzungszustände bleiben unverändert. DAP liefert eine
+Trace-/Request-Zuordnung nicht automatisch.
 
 ## Grenzen und Risiken
 
@@ -106,6 +137,13 @@ Instrumentierung wechseln.
 - Der richtige IST-Baustein wird markiert.
 - Die Artefakt-ID ist im pausierten Kontext prüfbar.
 - Ein Backend-Schritt wird ausgeführt, danach fortgesetzt.
+- Zwei überlappende Klicks und ein Retry bleiben über Selection-Token,
+  Action-Parent-Key und Request-Child-Keys isoliert.
+- Ein negativer Cross-Session-Test weist fremde Breakpoints, Stopps,
+  Variableninspektionen, Fortsetzen und Einzelschritte ab.
+- Duplikate, Retries, Reconnects, Kanalverlust, veraltete Stopps und ein
+  Lookup-Race mit Fortsetzen liefern den festgelegten idempotenten bzw.
+  diagnostizierten Zustand.
 - Der Fall liefert verständliche Diagnosen bei Quell-/Build-Mismatch,
   fehlender Quellzuordnung und konkurrierendem Request.
 - Der Ablauf funktioniert ohne SOLL-/PLAN-Modell.

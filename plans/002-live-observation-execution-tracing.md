@@ -71,6 +71,19 @@ Beobachtung noch vergangene Ausführungen.
    werden sichtbar nachgetragen; keine künstlich sichere Gesamtreihenfolge
    paralleler Vorgänge. Kausalbezüge sind wichtiger als Zeitstempelsortierung.
 
+Die Identität dieser Auswahl ist hierarchisch: `actionParentKey` ist
+`(sessionId, actionId)` und wird beim akzeptierten Klick einmalig erzeugt; jeder
+HTTP-Aufruf erhält als Kind einen eigenen `requestChildKey`
+`(actionParentKey, requestId)`. Die Zuordnung `selectionToken → actionParentKey
+→ actionKey → requestChildKey → eventKey` wird zusammen mit dem Ereignis
+persistiert, soweit eine Szenarioaufzeichnung aktiv ist; `actionKey` ist dabei der
+laufstabile Schlüssel aus Plan 003. Ohne Aufzeichnung bleiben
+`actionKey`/`eventKey` nur sitzungsbezogen. Store-, Watcher- und Timer-Ereignisse
+ohne eigenen Request verwenden direkt den `actionParentKey` und einen eigenen
+`eventKey`; es wird kein künstlicher Request erfunden. Mehrere Requests derselben
+Aktion bleiben dadurch getrennte Kinder, Retries erhalten jeweils einen neuen
+`requestId`.
+
 ## Aufzeichnung und Instrumentierung
 
 OpenTelemetry liefert Traces/Spans und Ereignisse als Grundlage, aber keine
@@ -93,9 +106,17 @@ Ein `RuntimeEvent` trägt sessionId, actionId, `correlationKey`, eventId, kind,
 traceId/spanId (falls vorhanden), Ursache/Links, serviceId, `buildId`, SourceRef,
 lokale Sequenznummer, Zeit und StateDeltaRef. Die stabile Korrelation besteht
 aus `(sessionId, actionId, requestId)`; `requestId` wird beim Start jedes Requests
-opak erzeugt und als Kontextattribut bzw. Header bis in Backend-Span und
-Debuggeradapter weitergegeben. Ein Live-`DebuggerStop` übernimmt denselben
-Schlüssel und zusätzlich stopId, SourceRef und buildId.
+opak erzeugt. Für eine echte OpenTelemetry-Elternbeziehung startet die
+Frontend-Aktion einen Root-Span; der W3C-Kontext wird mit `traceparent` und
+`tracestate` in jeden ausgehenden HTTP-Request injiziert und vom Backend
+extrahiert. Der Backend-Server-Span ist ein Kind dieses Kontexts und gibt ihn
+bei weiteren Aufrufen sowie bis zum Debuggeradapter weiter. `correlationKey`
+bleibt zusätzlich als anwendungsbezogene Zuordnung erhalten; ein opakes
+`requestId` allein gilt nicht als OpenTelemetry-Trace-Kontext. Falls eine Grenze
+W3C-Propagation nicht unterstützt, wird das als Lücke markiert und ausschließlich
+über `correlationKey` korreliert, nicht als Elternbeziehung behauptet. Ein Live-
+`DebuggerStop` übernimmt denselben Schlüssel und zusätzlich stopId, SourceRef
+und buildId.
 
 Der Kontext wird explizit an Promise-Fortsetzungen nach `await`, Timer und
 Watcher gebunden; überlappende Actions führen getrennte Schlüssel. Späte

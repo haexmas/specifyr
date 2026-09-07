@@ -55,7 +55,9 @@ Codeänderungen.
 Verglichen werden nicht Zeitachsen, sondern eine pro Klick-Aktion geordnete
 Menge korrelierter Ereignisse:
 
-- Requests mit normalisiertem Ziel und exaktem HTTP-Statuscode.
+- Requests mit HTTP-Methode, normalisierter Route, Zielservice und exaktem
+  HTTP-Statuscode. Methode, Route und Zielservice bilden gemeinsam die
+  normalisierte API-Identität aus Plan 001.
 - Zustandsdeltas ausgewählter Store-Felder.
 - Spans an vereinbarten Beobachtungspunkten.
 
@@ -63,17 +65,19 @@ Die Zuordnung verwendet keinen laufspezifischen `RuntimeEvent.eventId`. Jeder
 Klick erhält stattdessen einen über Durchläufe stabilen `actionKey` aus Szenario-
 ID, stabiler Aktionsnummer und normalisiertem Trigger. Ein Ereignis erhält einen
 `eventKey` aus `actionKey`, normalisiertem Typ, normalisierter Source-/Service-
-Referenz, normalisiertem Ziel und dem normalisierten kausalen Vorgängerpfad.
-Mehrfache gleichartige Geschwister werden durch ihre laufstabile Vorkommensnummer
-innerhalb dieses kausalen Elternknotens unterschieden. `traceId`, `spanId`,
-`eventId` und Zeitstempel sind dafür keine Identität.
+Referenz, HTTP-Methode, normalisierter Route, Zielservice, normalisiertem Ziel
+und dem normalisierten kausalen Vorgängerpfad. `traceId`, `spanId`, `eventId` und
+Zeitstempel sind dafür keine Identität.
 
 Kausale Eltern- und Link-Beziehungen werden vor dem Vergleich auf diese
 `eventKey`s normalisiert. Nebenläufige Ereignisse werden als ungeordnete
-Geschwistermengen unter demselben kausalen Elternknoten zugeordnet; ihre
-Zeitstempel- oder Ankunftsreihenfolge erzeugt keinen Unterschied. Fehlt ein
-stabiler Schlüssel, landet das Ereignis separat als nicht korrelierbar und wird
-nicht mit einem anderen Ereignis erzwungen zusammengeführt.
+Geschwistermengen unter demselben kausalen Elternknoten zugeordnet. Identische
+Geschwister werden als Multimenge verglichen; ihre Anzahl wird verglichen, ohne
+ihnen anhand von Zeitstempel oder Ankunftsreihenfolge eine willkürliche
+Vorkommensnummer zu geben. Nur wenn ein zeitunabhängiger, kanonischer
+Tie-Breaker vorhanden ist, darf daraus eine Vorkommensnummer abgeleitet werden.
+Fehlt ein stabiler Schlüssel, landet das Ereignis separat als nicht korrelierbar
+und wird nicht mit einem anderen Ereignis erzwungen zusammengeführt.
 
 Ein Unterschied ist ein fehlendes oder zusätzliches Ereignis, ein abweichender
 Zielendpunkt, ein anderer exakter Statuscode oder ein anderer Statusausgang. Die

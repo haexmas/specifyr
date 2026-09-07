@@ -275,7 +275,11 @@ Keine Graphdatenbank oder eigene Telemetrieplattform als Voraussetzung.
 Für produktive Trace-Daten gelten vor Beginn einer kontrollierten Aufzeichnung
 verbindliche Schutzregeln: Zugriff ist authentifiziert, rollenbasiert und auf die
 für Diagnose nötigen Personen sowie Felder beschränkt; sensible Felder werden
-vor Speicherung oder Export nach einer versionierten Allowlist redigiert. Jede
+vor Speicherung oder Export nach einer versionierten, geschlossenen Allowlist
+redigiert. Ausschließlich ausdrücklich erlaubte Felder werden verarbeitet;
+unbekannte Felder werden abgewiesen. Jeder Redaction-Fehler, jede ungültige
+Allowlist-Version und jede Überschreitung des Schemas bricht Speicherung und
+Export vollständig und atomar ab; es darf kein Teil-Trace verbleiben. Jede
 Aufzeichnung erhält eine dokumentierte maximale Aufbewahrungsdauer und einen
 prüfbaren Löschpfad einschließlich abgeleiteter Exporte und Backups, soweit diese
 unter der Kontrolle des Systems liegen. Tokens, Zugangsdaten und Nutzerinhalte
@@ -427,8 +431,15 @@ Benötigte Verträge, schrittweise ergänzt:
   Revision. `buildId` identifiziert das tatsächlich gebaute bzw. ausgeführte
   Artefakt unveränderlich; ein gleicher Commit mit anderem Build ist damit eine
   andere Quell-/Laufzeitzuordnung.
-- `Snapshot`: Stand, Revisionen je Repo, Arbeitsbaum-Digests, Erzeugungszeit,
-  `buildId` je ausgeführtem Artefakt, Adapterversionen und Abdeckungsdiagnosen.
+- `Snapshot`: `snapshotId`, Stand, Revisionen je Repo, Arbeitsbaum-Digests,
+  Erzeugungszeit, `buildId` je ausgeführtem Artefakt, Adapterversionen und
+  Abdeckungsdiagnosen. `snapshotId` ist der Hash einer kanonischen, nach `repoId`
+  sortierten Beschreibung dieser Revisionen, Builds, Digests und
+  Adapterversionen. Sein
+  Gültigkeitsbereich ist genau ein unveränderlicher Workspace-Snapshot; er ist
+  kein globaler Alias und wird bei unverändertem Inhalt wiederverwendet.
+  `EntityRef`, `Recording` und `DebugSession` übernehmen und validieren diesen
+  Wert aus demselben Snapshot-Descriptor.
 - `EntityRef`: kanonischer Schlüssel `(repoId, snapshotId, localNodeId)`;
   getrennt davon dauerhafte
   fachliche Identität und versionierte Zuordnungen mit Herkunft/Bestätigung.
@@ -559,7 +570,10 @@ Geplante specifyr-Bereiche: `src/observations/`, `src/core/scenarios/`, Trace-AP
 und Ablauf-UI. Änderungen an ANALYZE wären ein eigener begrenzter Folgeauftrag.
 Abnahmefixtures: Cache kalt/warm, zusätzliches Artefakt-Nachladen, wiederholte
 Auswahl, explizit erlaubter Retry, unzulässige Wiederholung, verlorener Kontext,
-unvollständige Messung und abweichende Buildrevision. Vor einer kontrollierten
+unvollständige Messung, abweichende Buildrevision, ein unbekanntes State-Feld
+und ein absichtlich fehlschlagender Redaction-Schritt. Die letzten beiden Fälle
+weisen nach, dass weder Speicherung noch Export Teil-Daten hinterlassen.
+Vor einer kontrollierten
 Aufzeichnung im echten System müssen die Schutzregeln für Zugriff, Redaction,
 Aufbewahrung und Löschung dokumentiert, technisch konfiguriert und mit einem
 Löschtest nachgewiesen sein. Architektur-JSON und Trace-Speicher werden dabei

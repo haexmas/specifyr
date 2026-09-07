@@ -80,7 +80,13 @@ ebenfalls zu dieser Sitzung passen. Das gilt ausdrücklich für Breakpoint-
 Erstellung, `DebuggerStop`-Zustellung, Variableninspektion, Fortsetzen sowie
 Einzelschritte. Ein negativer Cross-Session-Test muss den Zugriff auf fremde
 Breakpoints, Stopps, Variablen und Steuerbefehle ablehnen, ohne ihre Inhalte
-preiszugeben.
+preiszugeben. Dafür gibt es eine Testmatrix mit ansonsten identischem Benutzer
+und identischer Frontend-Sitzung: jeweils eine fremde Backend-Instanz, eine
+fremde `DebugSession`, ein fremdes `buildId` und ein fremdes `snapshotId` werden
+separat eingesetzt. Jede Variante wird für Breakpoint-Erstellung,
+`DebuggerStop`-Zustellung, Variableninspektion, Fortsetzen und Einzelschritte
+geprüft. Alle Ablehnungen verwenden dieselbe nicht aufschlussreiche Antwort;
+weder Existenz noch Inhalt der fremden Ressource werden verraten.
 
 Ein Debugger-Stopp muss sofort angezeigt werden können, auch wenn der
 zugehörige Span noch offen und noch nicht exportiert ist. Der Debuggeradapter
@@ -89,11 +95,23 @@ eindeutigen Schlüssel (`debugSessionId`, `correlationKey`, `stopId`), Benutzer-
 Frontend-Sitzungs- und Backend-Instanzbindung, `buildId`, stopSequence und
 SourceRef; alternativ fragt die IST-Ansicht diesen Schlüssel live beim Adapter
 nach. Das Zusammenführen ist anhand dieses Schlüssels idempotent: Retries und
-Duplikate erzeugen keine zweiten Stopps.
+Duplikate erzeugen keine zweiten Stopps. Ein vermeintliches Duplikat darf nur
+zusammengeführt werden, wenn auch die unveränderlichen Felder `buildId`,
+SourceRef, stopSequence sowie Benutzer-, Frontend-Sitzungs- und Backend-
+Instanzbindung exakt übereinstimmen. Bei einer Abweichung wird die Meldung
+zurückgewiesen, der bestehende Stopp bleibt unverändert und eine nachvollziehbare
+Konfliktdiagnose ohne fremde Inhalte wird protokolliert.
 
-Der Adapter führt pro DebugSession eine monotone stopSequence. Nach Reconnect
-werden nur Einträge ab der zuletzt bestätigten Sequenz erneut geliefert; die
-Ansicht zeigt bei Kanalverlust eine Diagnose und keinen still erfundenen Zustand.
+Der Adapter führt pro `DebugSession` eine strikt eindeutige, monotone
+`stopSequence`. Der Cursor ist der höchste lückenlose bestätigte Präfix, initial
+bei 0. Nach Reconnect werden Einträge ab diesem Cursor erneut angefordert; die
+Bestätigung darf nur in Sequenzreihenfolge erfolgen. Trifft beispielsweise 12
+vor 11 ein, wird 12 gepuffert und weder bestätigt noch als Cursor gesetzt, bis
+11 eingetroffen und geprüft ist. Danach werden 11 und 12 in Reihenfolge
+übernommen. Nichtlineare Zustellung wird durch Puffern oder erneute Zustellung
+behandelt; eine spätere Sequenz darf keine frühere Lücke überspringen.
+Die Ansicht zeigt bei Kanalverlust eine Diagnose und keinen still erfundenen
+Zustand.
 Läuft die konfigurierte Zustell- oder Lookup-Frist ab, bleibt der Zustand
 „Stop ausstehend“ mit einer sichtbaren Timeout-/Kanalverlustdiagnose bestehen;
 ein Stopp wird daraus nicht erraten. Ein späterer Reconnect darf nur über die
@@ -141,9 +159,18 @@ Instrumentierung wechseln.
   Action-Parent-Key und Request-Child-Keys isoliert.
 - Ein negativer Cross-Session-Test weist fremde Breakpoints, Stopps,
   Variableninspektionen, Fortsetzen und Einzelschritte ab.
+- Die negative Isolationstest-Matrix variiert Backend-Instanz, `DebugSession`,
+  `buildId` und `snapshotId` jeweils einzeln bei identischem Benutzer und
+  identischer Frontend-Sitzung; alle fünf Operationen werden ohne Existenz- oder
+  Inhaltsleck abgewiesen.
 - Duplikate, Retries, Reconnects, Kanalverlust, veraltete Stopps und ein
   Lookup-Race mit Fortsetzen liefern den festgelegten idempotenten bzw.
   diagnostizierten Zustand.
+- Ein Konflikttest mit gleichem Stop-Schlüssel, aber abweichendem `buildId`,
+  SourceRef, stopSequence oder Sitzungsbindung weist die Meldung zurück, ohne
+  den ursprünglichen Stopp zu überschreiben.
+- Ein Zustelltest mit 12 vor 11 bestätigt erst den lückenlosen Präfix bis 12,
+  nachdem 11 geprüft wurde; 12 wird bis dahin gepuffert oder erneut geliefert.
 - Der Fall liefert verständliche Diagnosen bei Quell-/Build-Mismatch,
   fehlender Quellzuordnung und konkurrierendem Request.
 - Der Ablauf funktioniert ohne SOLL-/PLAN-Modell.

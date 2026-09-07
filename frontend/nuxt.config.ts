@@ -8,7 +8,4 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: "en" },
     },
   },
-  nitro: {
-    preset: "node-server",
-  },
 });

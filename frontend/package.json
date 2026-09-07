@@ -14,7 +14,7 @@
     "specifyr": "workspace:*"
   },
   "devDependencies": {
-    "nuxt": "4.0.0",
+    "nuxt": "4.3.1",
     "vue": "3.5.13"
   }
 }

@@ -56,12 +56,23 @@ export async function waitForHttpReady({
 }): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
+    const remainingMs = timeoutMs - (Date.now() - started);
+    const controller = new AbortController();
+    const requestTimeout = setTimeout(() => controller.abort(), remainingMs);
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        throw new Error(`Editor readiness endpoint returned HTTP ${res.status}`);
+      }
       await res.arrayBuffer();
       return;
     } catch {
-      await new Promise((r) => setTimeout(r, intervalMs));
+      const delayMs = Math.min(intervalMs, timeoutMs - (Date.now() - started));
+      if (delayMs > 0) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    } finally {
+      clearTimeout(requestTimeout);
     }
   }
   throw new Error(`Timed out waiting for editor to be ready at ${url} after ${timeoutMs}ms`);
@@ -75,6 +86,12 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
   }
 
   const port = options.port ?? (await getPort({ port: portNumbers(3939, 3999) }));
+  if (options.port !== undefined) {
+    const availablePort = await getPort({ port: options.port });
+    if (availablePort !== options.port) {
+      throw new Error(`Port ${options.port} is already in use.`);
+    }
+  }
   const url = `http://127.0.0.1:${port}`;
 
   const child = spawn(process.execPath, [FRONTEND_SERVER], {
@@ -82,17 +99,30 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     stdio: ["ignore", "inherit", "inherit"],
   });
 
-  const shutdown = (): void => {
-    if (!child.killed) child.kill("SIGTERM");
+  const shutdown = async (): Promise<void> => {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+      await new Promise<void>((resolvePromise) => {
+        child.once("exit", () => resolvePromise());
+      });
+    }
   };
-  process.once("SIGINT", shutdown);
-  process.once("SIGTERM", shutdown);
+  const handleSignal = (): void => {
+    void shutdown();
+  };
+  process.once("SIGINT", handleSignal);
+  process.once("SIGTERM", handleSignal);
   child.once("exit", () => {
-    process.off("SIGINT", shutdown);
-    process.off("SIGTERM", shutdown);
+    process.off("SIGINT", handleSignal);
+    process.off("SIGTERM", handleSignal);
   });
 
-  await waitForHttpReady({ url: `${url}/`, timeoutMs: 15000 });
+  try {
+    await waitForHttpReady({ url: `${url}/`, timeoutMs: 15000 });
+  } catch (cause) {
+    await shutdown();
+    throw cause;
+  }
 
   process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
 

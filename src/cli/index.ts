@@ -70,8 +70,8 @@ const editorCommand = defineCommand({
   },
   async run({ args }) {
     const repoPath = resolve(args.path ?? process.cwd());
-    const port = args.port ? Number.parseInt(args.port, 10) : undefined;
-    if (port !== undefined && (Number.isNaN(port) || port < 1 || port > 65535)) {
+    const port = args.port === undefined ? undefined : Number(args.port);
+    if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
       throw new Error(`Invalid --port value: ${args.port}`);
     }
     const child = await runEditor({

@@ -1,30 +1,12 @@
 <script setup lang="ts">
 import { VueFlow, type Node as FlowNode, type Edge as FlowEdge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
+import type { Model } from "specifyr";
 
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
-interface SollNode {
-  id: string;
-  type: string;
-  name: string;
-}
-
-interface SollEdge {
-  id: string;
-  from: string;
-  to: string;
-  type: string;
-}
-
-interface SollModel {
-  meta: { source: string; generatedAt?: string };
-  nodes: SollNode[];
-  edges: SollEdge[];
-}
-
-const { data, error, status } = useFetch<SollModel>("/api/soll");
+const { data, error, status } = useFetch<Model>("/api/soll");
 
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];

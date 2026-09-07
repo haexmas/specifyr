@@ -102,6 +102,17 @@ Instanzbindung exakt übereinstimmen. Bei einer Abweichung wird die Meldung
 zurückgewiesen, der bestehende Stopp bleibt unverändert und eine nachvollziehbare
 Konfliktdiagnose ohne fremde Inhalte wird protokolliert.
 
+Veränderliche Kontextdaten werden davon getrennt und kommutativ angereichert:
+identische Callstack-Frames, Variablenwerte und pausierte Quellkontextfelder sind
+idempotent; fehlende Felder dürfen ergänzt werden. Bei Callstacks gewinnt nur
+eine strikt vollständigere, zum bisherigen Stack präfixkompatible Darstellung.
+Variablen und Quellkontext werden als kanonische Feldmengen vereinigt. Nicht
+präfixkompatible Stacks oder widersprüchliche Werte werden nicht überschrieben;
+das betroffene Feld wird als „Kontextkonflikt/unbekannt“ markiert und eine
+Diagnose gespeichert. Damit ist der angezeigte Inspector-Zustand unabhängig von
+der Zustellreihenfolge. Der Konflikt betrifft nicht die unveränderlichen Daten
+des bestehenden Stopps.
+
 Der Adapter führt pro `DebugSession` eine strikt eindeutige, monotone
 `stopSequence`. Der Cursor ist der höchste lückenlose bestätigte Präfix, initial
 bei 0. Nach Reconnect werden Einträge ab diesem Cursor erneut angefordert; die
@@ -112,6 +123,15 @@ vor 11 ein, wird 12 gepuffert und weder bestätigt noch als Cursor gesetzt, bis
 behandelt; eine spätere Sequenz darf keine frühere Lücke überspringen.
 Die Ansicht zeigt bei Kanalverlust eine Diagnose und keinen still erfundenen
 Zustand.
+
+`nextStopSequence` und der zuletzt bestätigte lückenlose Cursor werden dauerhaft
+im Zustand der `DebugSession` gespeichert. Die Vergabe des nächsten Werts ist
+atomar; ein Adapter-Neustart lädt diesen Zustand und setzt bei der nächsten
+Meldung hinter dem gespeicherten Wert fort. Eine Session darf nicht fortgeführt
+werden, wenn der persistierte Sequenzzustand nicht geladen oder nicht atomar
+aktualisiert werden kann; stattdessen erscheint eine Diagnose. So werden bereits
+bestätigte Werte weder wiederverwendet noch wird der Cursor unterschritten.
+
 Läuft die konfigurierte Zustell- oder Lookup-Frist ab, bleibt der Zustand
 „Stop ausstehend“ mit einer sichtbaren Timeout-/Kanalverlustdiagnose bestehen;
 ein Stopp wird daraus nicht erraten. Ein späterer Reconnect darf nur über die
@@ -169,8 +189,15 @@ Instrumentierung wechseln.
 - Ein Konflikttest mit gleichem Stop-Schlüssel, aber abweichendem `buildId`,
   SourceRef, stopSequence oder Sitzungsbindung weist die Meldung zurück, ohne
   den ursprünglichen Stopp zu überschreiben.
+- Ein Merge-Test liefert denselben Inspector-Zustand bei vertauschter Zustellung
+  zweier gleicher, anreichernder Kontextdaten. Widersprüchliche Callstacks,
+  Variablen oder Quellkontextfelder werden als unbekannt/Konflikt markiert und
+  überschreiben den bestehenden Stopp nicht.
 - Ein Zustelltest mit 12 vor 11 bestätigt erst den lückenlosen Präfix bis 12,
   nachdem 11 geprüft wurde; 12 wird bis dahin gepuffert oder erneut geliefert.
+- Ein Neustart-/Reconnect-Test lädt `nextStopSequence` und den bestätigten Cursor
+  aus der `DebugSession`, vergibt danach keinen alten Wert erneut und setzt keine
+  Sequenzlücke hinter dem Cursor fort.
 - Der Fall liefert verständliche Diagnosen bei Quell-/Build-Mismatch,
   fehlender Quellzuordnung und konkurrierendem Request.
 - Der Ablauf funktioniert ohne SOLL-/PLAN-Modell.

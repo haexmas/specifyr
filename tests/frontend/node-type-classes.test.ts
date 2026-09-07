@@ -46,6 +46,13 @@ describe("nodeTypeClasses", () => {
     }
   });
 
+  it("marks mapped colors important so they override Vue Flow's theme", () => {
+    for (const [type, classes] of Object.entries(NODE_TYPE_CLASSES)) {
+      expect(classes, `type: ${type}`).toMatch(/\bbg-\w+-100!/);
+      expect(classes, `type: ${type}`).toMatch(/\bborder-\w+-500!/);
+    }
+  });
+
   it("leaves the fallback bg-less so Vue Flow's default white shows through", () => {
     // If someone adds `bg-white` (or any bg-*) to the fallback, unknown-type
     // nodes stop looking distinct from Vue Flow's default. Explicitly guard.

@@ -18,6 +18,7 @@ export const NODE_TYPE_CLASSES: Record<string, string> = {
 
 const FALLBACK = "border-gray-400";
 
+/** Return the Tailwind color classes for a node type, or a neutral fallback. */
 export function nodeTypeClasses(type: string): string {
   return NODE_TYPE_CLASSES[type] ?? FALLBACK;
 }

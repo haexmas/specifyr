@@ -104,5 +104,15 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       );
     });
     expect(anyMentionsElk).toBe(true);
+
+    // Tailwind sanity check: the CSS bundle should contain at least one of the
+    // node-type utilities we mapped in nodeTypeClasses. A regression that
+    // dropped @tailwindcss/vite would ship the page unstyled.
+    const cssBundles = readdirSync(publicNuxt).filter((n) => n.endsWith(".css"));
+    const anyMentionsTailwindColor = cssBundles.some((name) => {
+      const content = readFileSync(resolve(publicNuxt, name), "utf8");
+      return content.includes("bg-blue-100") || content.includes("bg-purple-100");
+    });
+    expect(anyMentionsTailwindColor).toBe(true);
   }, 30000);
 });

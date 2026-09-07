@@ -24,6 +24,15 @@ export interface EditorOptions {
   openBrowser?: boolean;
 }
 
+/**
+ * Builds the environment variables for the editor child process, stripping
+ * test-related variables and setting SPECIFYR_REPO_PATH and PORT.
+ *
+ * @param parent - The parent process environment to inherit from.
+ * @param repoPath - Path to the repository containing .specifyr/soll/.
+ * @param port - Port number for the editor server.
+ * @returns Clean environment with SPECIFYR_REPO_PATH and PORT set.
+ */
 export function editorChildEnv(
   parent: NodeJS.ProcessEnv,
   { repoPath, port }: { repoPath: string; port: number },
@@ -45,6 +54,14 @@ export function editorChildEnv(
   };
 }
 
+/**
+ * Polls the given URL until it responds with HTTP 200 or the timeout is reached.
+ *
+ * @param url - The URL to poll for readiness.
+ * @param timeoutMs - Maximum milliseconds to wait before throwing.
+ * @param intervalMs - Milliseconds to wait between retry attempts (default: 100).
+ * @returns Resolves when the URL is ready, rejects on timeout or unrecoverable error.
+ */
 export async function waitForHttpReady({
   url,
   timeoutMs,
@@ -78,6 +95,14 @@ export async function waitForHttpReady({
   throw new Error(`Timed out waiting for editor to be ready at ${url} after ${timeoutMs}ms`);
 }
 
+/**
+ * Spawns the Nuxt frontend as a child process, waits for it to be ready, and
+ * optionally opens it in the browser. The child inherits stdio so logs appear
+ * in the parent's console.
+ *
+ * @param options - Configuration for the editor server.
+ * @returns The spawned child process, already listening and ready.
+ */
 export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
   const { repoPath, openBrowser = true } = options;
 
@@ -99,6 +124,7 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     stdio: ["ignore", "inherit", "inherit"],
   });
 
+  /** Gracefully terminates the child process if still running. */
   const shutdown = async (): Promise<void> => {
     if (child.exitCode === null && child.signalCode === null) {
       child.kill("SIGTERM");
@@ -107,6 +133,7 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
       });
     }
   };
+  /** Handles SIGINT/SIGTERM by triggering graceful shutdown. */
   const handleSignal = (): void => {
     void shutdown();
   };

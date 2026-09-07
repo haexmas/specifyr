@@ -11,6 +11,7 @@ const view = ref<ViewSource>("soll");
 const endpoint = computed(() => (view.value === "soll" ? "/api/soll" : "/api/ist"));
 const { data, error, status } = useFetch<Model>(endpoint, { watch: [view] });
 
+/** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
   return data.value.nodes.map((node, index) => ({
@@ -25,6 +26,7 @@ const flowNodes = computed<FlowNode[]>(() => {
   }));
 });
 
+/** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
   return data.value.edges.map((edge) => ({

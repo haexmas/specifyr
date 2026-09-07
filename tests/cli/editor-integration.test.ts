@@ -8,6 +8,13 @@ import { saveSoll } from "../../src/storage/soll.js";
 const CLI_ENTRY = resolve(process.cwd(), "dist", "cli", "index.js");
 const FRONTEND_BUILD = resolve(process.cwd(), "frontend", ".output", "server", "index.mjs");
 
+/**
+ * Removes Vitest-specific environment variables that can interfere with child
+ * process console output.
+ *
+ * @param env - The environment to clean.
+ * @returns A clean environment without test-related variables.
+ */
 function stripVitestEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const {
     VITEST: _v,
@@ -21,6 +28,15 @@ function stripVitestEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...clean, NO_COLOR: "1" };
 }
 
+/**
+ * Waits for a child process to emit output matching the given pattern on
+ * stdout or stderr.
+ *
+ * @param child - The child process to monitor.
+ * @param needle - Regular expression to match in the output.
+ * @param timeoutMs - Maximum milliseconds to wait.
+ * @returns The matched string from the output.
+ */
 async function waitForOutput(
   child: ChildProcessWithoutNullStreams,
   needle: RegExp,

@@ -141,6 +141,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
       </div>
       <aside
         class="w-80 shrink-0 overflow-y-auto border-l border-zinc-300 bg-zinc-50 px-4 py-3 text-sm"
+        aria-label="Node details"
       >
         <div v-if="!selectedNode" class="text-zinc-500">Nothing selected.</div>
         <dl

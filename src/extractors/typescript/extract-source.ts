@@ -1,4 +1,4 @@
-import type { Node as TsNode } from "web-tree-sitter";
+import type { Tree, Node as TsNode } from "web-tree-sitter";
 import type { Node } from "../../core/schemas.js";
 import { istNodeId } from "./node-id.js";
 import { parseTypeScript } from "./parser.js";
@@ -26,6 +26,11 @@ const TOP_LEVEL_KINDS: Record<string, string> = {
 /** Extract supported top-level TypeScript declarations from one source file. */
 export async function extractSource({ relativePath, source }: Source): Promise<Node[]> {
   const tree = await parseTypeScript(source);
+  return extractSourceFromTree(tree, relativePath);
+}
+
+/** Same as extractSource, but takes an already-parsed tree (no parse cost). */
+export function extractSourceFromTree(tree: Tree, relativePath: string): Node[] {
   const nodes: Node[] = [];
   const nameOccurrences = new Map<string, number>();
 

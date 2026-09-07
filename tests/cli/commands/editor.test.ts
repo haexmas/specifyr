@@ -1,6 +1,12 @@
+import { spawn } from "node:child_process";
 import open from "open";
 import { describe, expect, it, vi } from "vitest";
-import { editorChildEnv, runEditor, waitForHttpReady } from "../../../src/cli/commands/editor.js";
+import {
+  editorChildEnv,
+  runEditor,
+  waitForEditorReady,
+  waitForHttpReady,
+} from "../../../src/cli/commands/editor.js";
 
 vi.mock("open", () => ({ default: vi.fn() }));
 
@@ -82,6 +88,13 @@ describe("waitForHttpReady", () => {
   it("rejects with a timeout when the URL never responds", async () => {
     await expect(waitForHttpReady({ url: "http://127.0.0.1:1/", timeoutMs: 200 })).rejects.toThrow(
       /ready|timeout/i,
+    );
+  });
+
+  it("fails immediately when the editor exits before becoming ready", async () => {
+    const child = spawn(process.execPath, ["-e", "process.exit(23)"]);
+    await expect(waitForEditorReady(child, "http://127.0.0.1:1/", 2000)).rejects.toThrow(
+      /exited before readiness/,
     );
   });
 });

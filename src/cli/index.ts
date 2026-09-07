@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { defineCommand, runMain } from "citty";
 
+import { runEditor } from "./commands/editor.js";
 import { runInit } from "./commands/init.js";
 import { runStatus } from "./commands/status.js";
 import { formatInitReport, formatStatusReport } from "./report.js";
@@ -46,6 +47,45 @@ const statusCommand = defineCommand({
   },
 });
 
+const editorCommand = defineCommand({
+  meta: {
+    name: "editor",
+    description: "Start the read-only editor on the given path (default: current directory).",
+  },
+  args: {
+    path: {
+      type: "positional",
+      required: false,
+      description: "Repository root (default: cwd).",
+    },
+    port: {
+      type: "string",
+      description: "Port to bind (default: 3939 or next free).",
+      required: false,
+    },
+    "no-open": {
+      type: "boolean",
+      description: "Do not open the browser automatically.",
+    },
+  },
+  async run({ args }) {
+    const repoPath = resolve(args.path ?? process.cwd());
+    const port = args.port ? Number.parseInt(args.port, 10) : undefined;
+    if (port !== undefined && (Number.isNaN(port) || port < 1 || port > 65535)) {
+      throw new Error(`Invalid --port value: ${args.port}`);
+    }
+    const child = await runEditor({
+      repoPath,
+      openBrowser: !args["no-open"],
+      ...(port !== undefined ? { port } : {}),
+    });
+    // Keep the CLI process alive until the child exits (Ctrl-C forwards SIGINT).
+    await new Promise<void>((resolvePromise) => {
+      child.once("exit", () => resolvePromise());
+    });
+  },
+});
+
 const main = defineCommand({
   meta: {
     name: "specifyr",
@@ -55,6 +95,7 @@ const main = defineCommand({
   subCommands: {
     init: initCommand,
     status: statusCommand,
+    editor: editorCommand,
   },
 });
 

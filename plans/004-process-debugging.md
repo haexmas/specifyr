@@ -106,22 +106,43 @@ Veränderliche Kontextdaten werden davon getrennt und kommutativ angereichert:
 identische Callstack-Frames, Variablenwerte und pausierte Quellkontextfelder sind
 idempotent; fehlende Felder dürfen ergänzt werden. Bei Callstacks gewinnt nur
 eine strikt vollständigere, zum bisherigen Stack präfixkompatible Darstellung.
-Variablen und Quellkontext werden als kanonische Feldmengen vereinigt. Die
-Frame-Identität ist `(threadOrTaskId, frameIndex, normalisierte Funktion,
-SourceRef)`; die Scope-Identität ergänzt `(scopeKind, scopeOrdinal, scopeName)`.
-Ein Variablenpfad besteht aus dieser Scope-Identität plus kanonisch escaped
-Property-Segmenten. Ein Quellkontextfeld wird durch `(contextNamespace,
-kanonischer Feldpfad)` identifiziert. Gleichnamige Variablen in verschiedenen
-Frames oder Scopes bleiben dadurch getrennt.
+Variablen und Quellkontext werden als kanonische Feldmengen vereinigt.
 
-`fehlend` bedeutet: keine Beobachtung, darf später ergänzt werden und ist kein
-Wert. `null` ist ein tatsächlich beobachteter Wert. `unbekannt` bedeutet
-instrumentierungsbedingt nicht verfügbar oder redigiert; ein späterer konkreter
-Wert darf es als Anreicherung ersetzen. Zwei unterschiedliche konkrete Werte
-für dieselbe Identität werden nicht überschrieben, sondern als
-„Kontextkonflikt/unbekannt“ markiert und diagnostiziert. Damit ist der
-angezeigte Inspector-Zustand unabhängig von der Zustellreihenfolge. Der Konflikt
-betrifft nicht die unveränderlichen Daten des bestehenden Stopps.
+Die Frame-Identität ist zunächst `(debugSessionId, correlationKey, stopId,
+threadOrTaskId, frameIndex)`; Funktion und `SourceRef` sind anreicherbare
+Attribute und nicht Teil des Schlüssels. Fehlen Thread/Task oder Frame-Index,
+vergibt der Adapter einen dauerhaft gespeicherten vorläufigen Schlüssel aus
+Stop-Schlüssel, Adapter-Generation und stabiler Frame-Ordinalposition. Eine
+Aufwertung zu konkreten Identitätsfeldern schreibt eine persistierte
+`provisionalFrameId -> frameId`-Zuordnung und darf nur den bestehenden Frame
+ersetzen, nie einen zweiten erzeugen. Die Scope-Identität ergänzt
+`(frameId, scopeKind, scopeOrdinal, scopeName)`. Ein Variablenpfad besteht aus
+dieser Scope-Identität plus kanonisch escaped Property-Segmenten. Ein
+Quellkontextfeld wird durch `(contextNamespace, kanonischer Feldpfad)`
+identifiziert. Gleichnamige Variablen in verschiedenen Frames oder Scopes
+bleiben dadurch getrennt; eine Sequenz von „fehlend“ zu „konkret“ behält Frame
+und Scope.
+
+Für jeden Stopp wird außerdem eine persistierte `contextRevision` geführt.
+Jede Anreicherung läuft als serialisierte Compare-and-Swap-Transaktion:
+Revision lesen, kanonisch zusammenführen, nur bei unveränderter Revision
+schreiben und die Revision erhöhen; bei einem Versionskonflikt wird gegen den
+neuen Stand erneut gerechnet. Zwei unterschiedliche konkrete Werte für dieselbe
+Identität werden niemals überschrieben, sondern als deterministisch sortierte
+Wertmenge im Zustand `Kontextkonflikt` mit Diagnose gespeichert. Dadurch bleibt
+der angezeigte Inspector-Zustand unabhängig von Zustellreihenfolge und auch bei
+gleichzeitigen Anreicherungen erhalten. Der Konflikt betrifft nicht die
+unveränderlichen Daten des bestehenden Stopps.
+
+Die Zustände einer Kontextbeobachtung sind getrennt: `fehlend` bedeutet keine
+Beobachtung und ist kein Wert; `null` ist ein tatsächlich beobachteter Wert;
+`nicht verfügbar` bedeutet, dass die Instrumentierung keinen Wert liefern
+konnte; `redigiert` bedeutet, dass ein Wert aufgrund der Berechtigung verborgen
+wurde. Nur `nicht verfügbar` darf durch eine konkrete Beobachtung ersetzt
+werden. `redigiert` darf nur innerhalb derselben explizit autorisierten Sicht
+aufgewertet werden; eine spätere Anreicherung aus einer anderen Sicht darf nie
+geschützte Inhalte offenlegen. `null` und `redigiert` werden nicht durch
+konkrete Werte aus einer nicht autorisierten Sicht ersetzt.
 
 Der Adapter führt pro `DebugSession` eine strikt eindeutige, monotone
 `stopSequence`. Der Cursor ist der höchste lückenlose bestätigte Präfix, initial
@@ -135,19 +156,50 @@ Die Ansicht zeigt bei Kanalverlust eine Diagnose und keinen still erfundenen
 Zustand.
 
 `nextStopSequence` und der zuletzt bestätigte lückenlose Cursor werden dauerhaft
-im Zustand der `DebugSession` gespeichert. Die Vergabe des nächsten Werts ist
-Teil einer gemeinsamen atomaren Transaktion mit dem zugehörigen dauerhaft
-gespeicherten `DebuggerStopRecord` im Zustand `pending` (alternativ einem
-expliziten `gap`-Marker): Sequenzwert, Datensatz und inkrementierter
-`nextStopSequence` werden gemeinsam geschrieben oder gemeinsam verworfen. Ein
-Adapter-Neustart lädt diesen Zustand und liefert jeden `pending`-Datensatz ab dem
-Cursor erneut, bevor eine spätere Sequenz bestätigt wird. Eine Session darf nicht fortgeführt
-werden, wenn der persistierte Sequenzzustand nicht geladen oder nicht atomar
-aktualisiert werden kann; stattdessen erscheint eine Diagnose. So werden bereits
-bestätigte Werte weder wiederverwendet noch wird der Cursor unterschritten. Ein
-Absturz nach dieser Transaktion, aber vor der Live-Zustellung, hinterlässt den
-Stopp zur erneuten Zustellung; ein Absturz innerhalb der Transaktion hinterlässt
-weder einen inkrementierten Zähler noch einen verwaisten Datensatz.
+im Zustand der `DebugSession` gespeichert. Jeder `DebuggerStopRecord` speichert
+zusammen mit seiner Sequenz den vollständigen eindeutigen Schlüssel
+`(debugSessionId, correlationKey, stopId)`; darauf liegt ein persistierter
+Idempotenzindex. Die Vergabe des nächsten Werts ist Teil einer gemeinsamen
+atomaren Transaktion mit dem zugehörigen dauerhaft gespeicherten
+`DebuggerStopRecord` im Zustand `pending` (alternativ einem expliziten
+`gap`-Marker): Sequenzwert, Datensatz und inkrementierter `nextStopSequence`
+werden gemeinsam geschrieben oder gemeinsam verworfen. Vor jeder Vergabe wird
+der Idempotenzindex geprüft: Existiert der Schlüssel bereits mit identischen
+unveränderlichen Bindungen, liefert der Retry exakt denselben Datensatz
+einschließlich `stopSequence` zurück; nur ein unbekannter Schlüssel darf eine
+neue Sequenz erhalten. Eine abweichende Bindung wird als Konflikt abgewiesen.
+Damit erzeugt auch ein Commit nach anschließend verlorenem Live-Response beim
+erneuten Senden weder eine neue Sequenz noch eine Lücke.
+
+Ein Adapter-Neustart lädt diesen Zustand und liefert jeden `pending`-Datensatz ab
+dem Cursor erneut, bevor eine spätere Sequenz bestätigt wird. Eine Session darf
+nicht fortgeführt werden, wenn der persistierte Sequenzzustand nicht geladen
+oder nicht atomar aktualisiert werden kann; stattdessen erscheint eine
+Diagnose. So werden bereits bestätigte Werte weder wiederverwendet noch wird
+der Cursor unterschritten. Ein Absturz nach dieser Transaktion, aber vor der
+Live-Zustellung, hinterlässt den Stopp zur erneuten Zustellung; ein Absturz
+innerhalb der Transaktion hinterlässt weder einen inkrementierten Zähler noch
+einen verwaisten Datensatz.
+
+Für gespeicherte Stopps gilt eine idempotente Zustandsmaschine. `pending` ist
+der einzige wiederzustellende Zustand. Die Zustellung kann genau einmal in
+`confirmed` (Bestätigung), `stale` (veraltet, etwa nach Fortsetzen, Timeout
+oder Session-Schließung) oder `conflict` (abweichende unveränderliche Daten)
+enden; jeder dieser Zustände ist terminal für die Zustellung. Ein bestätigter
+Stopp hat zusätzlich den Steuerzustand `open`, der nach erfolgreich
+quittiertem Fortsetzen oder Einzelschritt genau einmal in den terminalen
+Zustand `continued` übergeht. Die beiden Zustandsdimensionen haben damit die
+erlaubten Übergänge `pending -> confirmed|stale|conflict` für die Zustellung
+sowie `confirmed/open -> continued` für die Steuerung; alle anderen Übergänge
+werden idempotent mit dem bereits gespeicherten Endzustand beantwortet. Beim Neustart werden ausschließlich `pending`-Einträge erneut
+zugestellt, nie `confirmed`, `continued`, `stale` oder `conflict`.
+
+Terminale Datensätze werden mindestens für die konfigurierte Debug-Session-
+Aufbewahrungsfrist gehalten. Danach wird der große Kontext bereinigt, aber ein
+kompakter Tombstone mit Stop-Schlüssel, `stopSequence`, unveränderlichem
+Bindungs-Digest und Endzustand bis zum Ende des maximalen Retry-Fensters
+behalten; erst danach darf er gelöscht werden. So bleiben Commit-then-timeout-
+Retries idempotent, ohne unbegrenzt Stop-Inhalte aufzubewahren.
 
 Läuft die konfigurierte Zustell- oder Lookup-Frist ab, bleibt der Zustand
 „Stop ausstehend“ mit einer sichtbaren Timeout-/Kanalverlustdiagnose bestehen;
@@ -210,9 +262,15 @@ Instrumentierung wechseln.
   zweier gleicher, anreichernder Kontextdaten. Widersprüchliche Callstacks,
   Variablen oder Quellkontextfelder werden als unbekannt/Konflikt markiert und
   überschreiben den bestehenden Stopp nicht.
+- Ein Race-Test führt zwei gleichzeitige Anreicherungen mit unterschiedlichen
+  konkreten Werten über dieselbe `contextRevision` aus; eine CAS-/Retry-Runde
+  bewahrt beide Werte als Konflikt und liefert bei vertauschter Zustellreihenfolge
+  denselben Inspector-Zustand.
 - Ein Scope-Test zeigt gleichnamige Variablen in zwei unterschiedlichen Frames
-  oder Scopes getrennt; `fehlend`, `null` und `unbekannt` folgen den definierten
-  Ergänzungs- und Konfliktregeln.
+  oder Scopes getrennt; eine Anreicherung von fehlendem zu konkretem Frame-
+  Kontext dupliziert weder Frame noch Variable. `fehlend`, `null`, `nicht
+  verfügbar` und `redigiert` folgen den definierten Ergänzungs- und
+  Berechtigungsregeln.
 - Ein Zustelltest mit 12 vor 11 bestätigt erst den lückenlosen Präfix bis 12,
   nachdem 11 geprüft wurde; 12 wird bis dahin gepuffert oder erneut geliefert.
 - Ein Neustart-/Reconnect-Test lädt `nextStopSequence` und den bestätigten Cursor
@@ -221,6 +279,14 @@ Instrumentierung wechseln.
 - Ein Absturztest zwischen atomarer Sequenz-/Stop-Speicherung und Live-Zustellung
   stellt den `pending`-Stopp nach Neustart erneut zu, bevor die nächste Sequenz
   verwendet oder der Cursor weitergeschoben wird.
+- Ein Commit-then-timeout-Retry-Test verliert die Antwort nach erfolgreichem
+  Commit und sendet denselben Stop-Schlüssel erneut; der vorhandene Datensatz
+  einschließlich identischer `stopSequence` wird zurückgegeben.
+- Ein Zustandsautomatentest prüft die Übergänge von `pending` nach `confirmed`,
+  `stale` oder `conflict` sowie `confirmed/open -> continued`, lehnt alle
+  anderen Übergänge ab und stellt nach Neustart ausschließlich ungelöste
+  `pending`-Einträge erneut zu. Aufbewahrung und Tombstone-Bereinigung werden
+  über das Retry-Fenster geprüft.
 - Der Fall liefert verständliche Diagnosen bei Quell-/Build-Mismatch,
   fehlender Quellzuordnung und konkurrierendem Request.
 - Der Ablauf funktioniert ohne SOLL-/PLAN-Modell.

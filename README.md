@@ -13,7 +13,7 @@ for the full design and the plan for later slices.
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - pnpm 9 (via `corepack enable`)
 
 ## Development

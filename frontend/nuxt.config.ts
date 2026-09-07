@@ -6,6 +6,8 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   css: ["~/assets/css/tailwind.css"],
   vite: {
+    // @ts-expect-error — @tailwindcss/vite returns Plugin<any>[] which
+    // Nuxt's PluginOption type narrows differently; runtime is compatible.
     plugins: [tailwindcss()],
   },
   app: {

@@ -9,6 +9,8 @@
     "preview": "nuxt preview"
   },
   "dependencies": {
+    "@vue-flow/background": "1.3.2",
+    "@vue-flow/core": "1.42.0",
     "specifyr": "workspace:*"
   },
   "devDependencies": {

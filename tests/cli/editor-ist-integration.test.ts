@@ -136,6 +136,7 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       "background-color:#fff",
     );
 
+    /** Extract a generated utility rule and replace its color variable for DOM evaluation. */
     const utilityRule = (className: string, computedValue: string): string => {
       const escapedClass = className.replace("!", "\\\\!");
       const rule = css.match(new RegExp(`\\.${escapedClass}\\{[^}]+\\}`))?.[0];
@@ -143,6 +144,7 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       return rule?.replace(/var\(--color-[^)]+\)/, computedValue) ?? "";
     };
 
+    /** Return the mapped background and border utility classes for a node type. */
     const mappedClasses = (type: string): [string, string] => {
       const classes = nodeTypeClasses(type).split(" ");
       const background = classes.find((className) => className.startsWith("bg-"));

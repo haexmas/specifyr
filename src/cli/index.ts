@@ -63,9 +63,10 @@ const editorCommand = defineCommand({
       description: "Port to bind (default: 3939 or next free).",
       required: false,
     },
-    "no-open": {
+    open: {
       type: "boolean",
-      description: "Do not open the browser automatically.",
+      description: "Open the browser automatically (use --no-open to disable).",
+      default: true,
     },
   },
   async run({ args }) {
@@ -76,7 +77,7 @@ const editorCommand = defineCommand({
     }
     const child = await runEditor({
       repoPath,
-      openBrowser: !args["no-open"],
+      openBrowser: args.open,
       ...(port !== undefined ? { port } : {}),
     });
     // Keep the CLI process alive until the child exits (Ctrl-C forwards SIGINT).

@@ -11,16 +11,22 @@ const view = ref<ViewSource>("soll");
 const endpoint = computed(() => (view.value === "soll" ? "/api/soll" : "/api/ist"));
 const { data, error, status } = useFetch<Model>(endpoint, { watch: [view] });
 
+const layoutInput = computed(() => ({
+  nodes: data.value?.nodes?.map((n) => ({ id: n.id, label: n.name })) ?? [],
+  edges: data.value?.edges?.map((e) => ({ id: e.id, from: e.from, to: e.to })) ?? [],
+}));
+const { positions, pending: layoutPending } = useElkLayout({
+  nodes: computed(() => layoutInput.value.nodes),
+  edges: computed(() => layoutInput.value.edges),
+});
+
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
-  return data.value.nodes.map((node, index) => ({
+  return data.value.nodes.map((node) => ({
     id: node.id,
     type: "default",
-    position: {
-      x: (index % 4) * 240,
-      y: Math.floor(index / 4) * 160,
-    },
+    position: positions.value.get(node.id) ?? { x: 0, y: 0 },
     data: { label: `${node.name}\n(${node.type})` },
     class: `soll-node soll-node--${node.type}`,
   }));
@@ -63,6 +69,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
       </span>
+      <span v-if="layoutPending" class="editor-layout-status">· laying out…</span>
     </header>
     <div v-if="status === 'pending'" class="editor-status">Loading…</div>
     <div v-else-if="error" class="editor-status editor-status--error">
@@ -127,6 +134,10 @@ const flowEdges = computed<FlowEdge[]>(() => {
 .editor-segmenter button.is-active {
   background: #e4e4e7;
   font-weight: 600;
+}
+.editor-layout-status {
+  color: #6b7280;
+  font-style: italic;
 }
 </style>
 

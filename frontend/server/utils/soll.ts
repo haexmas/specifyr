@@ -2,6 +2,8 @@ import type { Model } from "specifyr";
 import { loadSoll } from "specifyr/storage";
 
 export async function loadSollForRequest(): Promise<Model> {
+  // Assumes nitro.preset "node-server" — process.env is stable across requests.
+  // If moving to an edge preset later, read from event context instead.
   const repoPath = process.env.SPECIFYR_REPO_PATH;
   if (!repoPath) {
     throw new Error(

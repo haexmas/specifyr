@@ -24,7 +24,7 @@ interface SollModel {
   edges: SollEdge[];
 }
 
-const { data, error, pending } = await useFetch<SollModel>("/api/soll");
+const { data, error, status } = useFetch<SollModel>("/api/soll");
 
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
@@ -61,9 +61,12 @@ const flowEdges = computed<FlowEdge[]>(() => {
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
       </span>
     </header>
-    <div v-if="pending" class="editor-status">Loading…</div>
+    <div v-if="status === 'pending'" class="editor-status">Loading…</div>
     <div v-else-if="error" class="editor-status editor-status--error">
-      Error: {{ error.message }}
+      Error: {{ (error.data as { error?: string })?.error ?? error.message }}
+    </div>
+    <div v-else-if="!data?.nodes?.length" class="editor-status">
+      SOLL is empty — no nodes to display.
     </div>
     <div v-else class="editor-canvas">
       <VueFlow :nodes="flowNodes" :edges="flowEdges" :nodes-draggable="false" :nodes-connectable="false" :elements-selectable="false">

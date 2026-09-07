@@ -1,4 +1,4 @@
-import type { Node as TsNode } from "web-tree-sitter";
+import type { Tree, Node as TsNode } from "web-tree-sitter";
 import { parseTypeScript } from "./parser.js";
 
 export interface RawImport {
@@ -9,6 +9,11 @@ export interface RawImport {
 /** Extract every static `import ... from "..."` specifier from a source file. */
 export async function extractImports(fromRelative: string, source: string): Promise<RawImport[]> {
   const tree = await parseTypeScript(source);
+  return extractImportsFromTree(tree, fromRelative);
+}
+
+/** Same as extractImports, but takes an already-parsed tree (no parse cost). */
+export function extractImportsFromTree(tree: Tree, fromRelative: string): RawImport[] {
   const results: RawImport[] = [];
 
   for (const child of tree.rootNode.namedChildren) {

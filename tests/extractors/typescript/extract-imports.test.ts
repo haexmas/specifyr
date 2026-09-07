@@ -62,4 +62,9 @@ describe("extractImports", () => {
     );
     expect(raw.map((r) => r.specifier).sort()).toEqual(["node:fs/promises", "zod"]);
   });
+
+  it("extracts import type statements same as value imports", async () => {
+    const raw = await extractImports("src/foo.ts", 'import type { Bar } from "./bar";\n');
+    expect(raw).toEqual([{ fromRelative: "src/foo.ts", specifier: "./bar" }]);
+  });
 });

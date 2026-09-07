@@ -1,4 +1,4 @@
-import { dirname, join, normalize } from "node:path";
+import { dirname, join, normalize } from "node:path/posix";
 
 // Suffixes tried in order for a bare specifier. Matches Node ESM + TS module
 // resolution as we use it in this codebase: source is authored as .ts / .tsx,

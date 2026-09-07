@@ -1,13 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import type { Tree } from "web-tree-sitter";
 import type { Edge, Model, Node } from "../../core/schemas.js";
 import { ModelSchema } from "../../core/schemas.js";
 import { istEdgeId } from "./edge-id.js";
 import type { RawImport } from "./extract-imports.js";
-import { extractImports } from "./extract-imports.js";
-import { extractSource } from "./extract-source.js";
+import { extractImportsFromTree } from "./extract-imports.js";
+import { extractSourceFromTree } from "./extract-source.js";
 import { istNodeId } from "./node-id.js";
+import { parseTypeScript } from "./parser.js";
 import { resolveImport } from "./resolve-import.js";
 import { walkTsFiles } from "./walk.js";
 
@@ -18,17 +20,18 @@ export async function extractIst(repoRoot: string): Promise<Model> {
   const allNodes: Node[] = [];
   const rawImports: RawImport[] = [];
 
-  // Pass 1: walk + parse each file, collect nodes and raw import specifiers.
+  // Pass 1: walk + parse each file ONCE, collect nodes and raw import specifiers.
   for (const relativePath of files) {
     const source = await readFile(join(repoRoot, relativePath), "utf8");
-    let nodes: Node[];
+    let tree: Tree;
     try {
-      nodes = await extractSource({ relativePath, source });
+      tree = await parseTypeScript(source);
     } catch (cause) {
-      throw new Error(`extractSource failed for ${relativePath}`, { cause });
+      throw new Error(`parseTypeScript failed for ${relativePath}`, { cause });
     }
+    const nodes = extractSourceFromTree(tree, relativePath);
+    const imports = extractImportsFromTree(tree, relativePath);
     allNodes.push(...nodes);
-    const imports = await extractImports(relativePath, source);
     rawImports.push(...imports);
   }
 

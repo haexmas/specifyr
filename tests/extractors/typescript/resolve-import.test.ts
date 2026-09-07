@@ -54,4 +54,12 @@ describe("resolveImport", () => {
     expect(resolveImport("src/storage/soll.ts", "./soll", files)).toBeUndefined();
     expect(resolveImport("src/storage/soll.ts", ".", files)).toBeUndefined();
   });
+
+  it("works when fromRelative is passed with forward slashes (walker's convention)", () => {
+    // walk.ts normalizes to forward slashes regardless of OS. resolveImport must
+    // accept that shape and produce forward-slash-normalized candidates so the
+    // file-set lookup works on Windows too.
+    const winFiles = new Set(["src/storage/soll.ts", "src/storage/paths.ts"]);
+    expect(resolveImport("src/storage/soll.ts", "./paths", winFiles)).toBe("src/storage/paths.ts");
+  });
 });

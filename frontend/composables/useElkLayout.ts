@@ -31,7 +31,7 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
   const inputKey = computed(() =>
     JSON.stringify({
       n: nodes.value.map((n) => n.id).sort(),
-      e: edges.value.map((e) => `${e.from}->${e.to}`).sort(),
+      e: edges.value.map((e) => `${e.id}:${e.from}->${e.to}`).sort(),
     }),
   );
 

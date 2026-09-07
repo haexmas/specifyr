@@ -352,8 +352,9 @@ export interface UseElkLayoutResult {
   error: Ref<Error | undefined>;
 }
 
-// One ELK instance per composable invocation — cheap, avoids sharing state
-// across concurrent SOLL/IST toggles.
+// One ELK instance per composable invocation. elk.bundled.js resolves to an
+// in-thread FakeWorker (no OS Web Worker), so there is nothing to terminate
+// on unmount — GC releases the closure when the composable's refs are dropped.
 export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutResult {
   const positions = ref(new Map<string, { x: number; y: number }>());
   const pending = ref(false);
@@ -363,25 +364,36 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
   const inputKey = computed(() =>
     JSON.stringify({
       n: nodes.value.map((n) => n.id).sort(),
-      e: edges.value.map((e) => `${e.from}->${e.to}`).sort(),
+      e: edges.value.map((e) => `${e.id}:${e.from}->${e.to}`).sort(),
     }),
   );
 
-  watchEffect(async () => {
-    // Read the key so this effect re-fires whenever the input identity changes.
-    void inputKey.value;
+  let lastKey: string | undefined;
+  let runId = 0;
 
+  watchEffect(async () => {
+    const key = inputKey.value;
+    if (key === lastKey) return;
+    lastKey = key;
+
+    const myRun = ++runId;
     pending.value = true;
     error.value = undefined;
     try {
       const graph = modelToElkGraph({ nodes: nodes.value, edges: edges.value });
-      const laidOut = await elk.layout(graph);
+      // elkjs's ElkNode/ElkExtendedEdge types are structurally compatible with our
+      // adapter output, but the generic self-reference in ELK.layout confuses TS.
+      // Cast the call site only — our own types stay strict.
+      const laidOut = await elk.layout(graph as unknown as Parameters<typeof elk.layout>[0]);
+      if (myRun !== runId) return; // a newer run has started, discard stale result
       positions.value = elkResultToPositions(laidOut);
     } catch (cause) {
+      if (myRun !== runId) return; // discard stale error too
       error.value = cause instanceof Error ? cause : new Error(String(cause));
-      positions.value = new Map();
+      // Note: keeps the last-known-good positions instead of clearing them.
+      // Graceful ELK-failure UI is a non-goal; this at least avoids a blank canvas.
     } finally {
-      pending.value = false;
+      if (myRun === runId) pending.value = false;
     }
   });
 
@@ -391,7 +403,9 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
 
 Notes:
 - `elkjs/lib/elk.bundled.js` is the browser-friendly bundle — ships as ESM in `elkjs@0.12`. If the import path differs in the installed version (Nuxt may resolve `elkjs` differently), fall back to the default `import ELK from "elkjs"` and note in the commit body.
-- `watchEffect` re-runs whenever `inputKey` changes — a re-fetch that returns the same node/edge topology won't re-layout, but that's rare in practice.
+- `lastKey` gate: `watchEffect` re-runs whenever any reactive read inside changes; the explicit `key === lastKey` short-circuit ensures that a `data` re-fetch returning the same topology does NOT trigger a re-layout.
+- `runId` race guard: two fast SOLL/IST toggles could otherwise let a slow stale layout overwrite a fresh one; each run tags itself and bails out if `runId` has advanced.
+- Keep-last-good positions on error: an ELK failure preserves the previous layout rather than blanking the canvas.
 - `computed(() => JSON.stringify(...))` is a cheap identity hash for the input; heavier equality would be premature optimization.
 
 **Step 2: Verify build + typecheck**

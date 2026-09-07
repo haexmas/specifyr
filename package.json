@@ -9,7 +9,7 @@
   },
   "packageManager": "pnpm@9.15.0",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": ["dist", "frontend/.output"],
   "bin": {
     "specifyr": "dist/cli/index.js"
   },
@@ -28,7 +28,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-packs.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-packs.mjs && pnpm --filter specifyr-frontend build",
     "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

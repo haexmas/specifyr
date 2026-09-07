@@ -17,6 +17,8 @@ const FRONTEND_SERVER = resolve(
   "server",
   "index.mjs",
 );
+const AUTOMATIC_START_ATTEMPTS = 3;
+const EDITOR_READY_TIMEOUT_MS = 15000;
 
 export interface EditorOptions {
   repoPath: string;
@@ -62,21 +64,29 @@ export function editorChildEnv(
  * @param url - The URL to poll for readiness.
  * @param timeoutMs - Maximum milliseconds to wait before throwing.
  * @param intervalMs - Milliseconds to wait between retry attempts (default: 100).
+ * @param signal - Optional signal that aborts readiness polling.
  * @returns Resolves on a successful 2xx response, rejects when the timeout is reached.
  */
 export async function waitForHttpReady({
   url,
   timeoutMs,
   intervalMs = 100,
+  signal,
 }: {
   url: string;
   timeoutMs: number;
   intervalMs?: number;
+  signal?: AbortSignal;
 }): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
+    if (signal?.aborted) {
+      throw new Error(`Editor readiness polling aborted for ${url}`);
+    }
     const remainingMs = timeoutMs - (Date.now() - started);
     const controller = new AbortController();
+    const abortRequest = (): void => controller.abort();
+    signal?.addEventListener("abort", abortRequest, { once: true });
     const requestTimeout = setTimeout(() => controller.abort(), remainingMs);
     try {
       const res = await fetch(url, { signal: controller.signal });
@@ -92,39 +102,56 @@ export async function waitForHttpReady({
       }
     } finally {
       clearTimeout(requestTimeout);
+      signal?.removeEventListener("abort", abortRequest);
     }
   }
   throw new Error(`Timed out waiting for editor to be ready at ${url} after ${timeoutMs}ms`);
 }
 
-/**
- * Spawns the Nuxt frontend as a child process, waits for it to be ready, and
- * optionally opens it in the browser. The child ignores stdin and inherits
- * stdout and stderr so logs appear in the parent's console.
- *
- * @param options - Configuration for the editor server.
- * @returns The spawned child process, already listening and ready.
- */
-export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
-  const { repoPath, openBrowser = true } = options;
+/** Wait for the editor to become ready, failing immediately if its process exits. */
+export async function waitForEditorReady(
+  child: ChildProcess,
+  url: string,
+  timeoutMs = EDITOR_READY_TIMEOUT_MS,
+): Promise<void> {
+  const abortController = new AbortController();
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    let settled = false;
 
-  if (!existsSync(FRONTEND_SERVER)) {
-    throw new Error(`Editor build not found at ${FRONTEND_SERVER}. Run \`pnpm build\` first.`);
-  }
+    const finish = (callback: () => void): void => {
+      if (settled) return;
+      settled = true;
+      child.off("exit", onExit);
+      abortController.abort();
+      callback();
+    };
 
-  // Automatic ports must come from the OS-assigned ephemeral range. A
-  // preferred fixed range is race-prone when multiple CLI processes start at
-  // the same time: each process can observe the same port as free before
-  // either child binds it.
-  const port = options.port ?? (await getPort());
-  if (options.port !== undefined) {
-    const availablePort = await getPort({ port: options.port });
-    if (availablePort !== options.port) {
-      throw new Error(`Port ${options.port} is already in use.`);
-    }
-  }
-  const url = `http://127.0.0.1:${port}`;
+    const onExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+      finish(() => {
+        rejectPromise(
+          new Error(
+            `Editor process exited before readiness (code ${code ?? "unknown"}, ` +
+              `signal ${signal ?? "unknown"})`,
+          ),
+        );
+      });
+    };
 
+    child.once("exit", onExit);
+    void waitForHttpReady({ url, timeoutMs, signal: abortController.signal }).then(
+      () => finish(resolvePromise),
+      (cause) => finish(() => rejectPromise(cause)),
+    );
+  });
+}
+
+interface StartedEditor {
+  child: ChildProcess;
+  shutdown: () => Promise<void>;
+}
+
+/** Spawn the frontend and attach the signal/shutdown lifecycle handlers. */
+function spawnEditor(repoPath: string, port: number): StartedEditor {
   const child = spawn(process.execPath, [FRONTEND_SERVER], {
     env: editorChildEnv(process.env, { repoPath, port }),
     stdio: ["ignore", "inherit", "inherit"],
@@ -150,12 +177,87 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     process.off("SIGTERM", handleSignal);
   });
 
+  return { child, shutdown };
+}
+
+/** Spawn an editor and wait for its readiness contract. */
+async function startEditor(
+  repoPath: string,
+  port: number,
+  waitForReady: (child: ChildProcess, url: string) => Promise<void>,
+): Promise<StartedEditor> {
+  const started = spawnEditor(repoPath, port);
   try {
-    await waitForHttpReady({ url: `${url}/`, timeoutMs: 15000 });
+    await waitForReady(started.child, `http://127.0.0.1:${port}/`);
+    return started;
   } catch (cause) {
-    await shutdown();
+    await started.shutdown();
     throw cause;
   }
+}
+
+/**
+ * Spawns the Nuxt frontend as a child process, waits for it to be ready, and
+ * optionally opens it in the browser. The child ignores stdin and inherits
+ * stdout and stderr so logs appear in the parent's console.
+ *
+ * @param options - Configuration for the editor server.
+ * @returns The spawned child process, already listening and ready.
+ */
+export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
+  const { repoPath, openBrowser = true } = options;
+
+  if (!existsSync(FRONTEND_SERVER)) {
+    throw new Error(`Editor build not found at ${FRONTEND_SERVER}. Run \`pnpm build\` first.`);
+  }
+
+  if (options.port !== undefined) {
+    const availablePort = await getPort({ port: options.port });
+    if (availablePort !== options.port) {
+      throw new Error(`Port ${options.port} is already in use.`);
+    }
+    const port = options.port;
+    const started = await startEditor(repoPath, port, (_child, url) =>
+      waitForHttpReady({ url, timeoutMs: EDITOR_READY_TIMEOUT_MS }),
+    );
+    const url = `http://127.0.0.1:${port}`;
+
+    process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
+
+    if (openBrowser) {
+      try {
+        await open(url);
+      } catch (cause) {
+        await started.shutdown();
+        throw cause;
+      }
+      process.stdout.write("Browser opened.\n");
+    }
+
+    return started.child;
+  }
+
+  let started: StartedEditor | undefined;
+  let startedPort: number | undefined;
+  let lastCause: unknown;
+  for (let attempt = 0; attempt < AUTOMATIC_START_ATTEMPTS; attempt += 1) {
+    const port = await getPort();
+    try {
+      started = await startEditor(repoPath, port, (child, url) => waitForEditorReady(child, url));
+      startedPort = port;
+      break;
+    } catch (cause) {
+      lastCause = cause;
+    }
+  }
+
+  if (!started || startedPort === undefined) {
+    throw lastCause instanceof Error
+      ? lastCause
+      : new Error("Editor failed to start after automatic port retries.");
+  }
+
+  const url = `http://127.0.0.1:${startedPort}`;
 
   process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
 
@@ -163,11 +265,11 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     try {
       await open(url);
     } catch (cause) {
-      await shutdown();
+      await started.shutdown();
       throw cause;
     }
     process.stdout.write("Browser opened.\n");
   }
 
-  return child;
+  return started.child;
 }

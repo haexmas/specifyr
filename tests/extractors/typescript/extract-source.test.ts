@@ -76,6 +76,45 @@ describe("extractSource", () => {
     expect(cls?.name).toBe("Global");
   });
 
+  it("emits a class node for an exported ambient declaration", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/exported-ambient.d.ts",
+      source: "export declare class ExportedGlobal {}\n",
+    });
+    const cls = nodes.find((n) => n.type === "class");
+    expect(cls?.name).toBe("ExportedGlobal");
+  });
+
+  it("assigns unique deterministic IDs to merged declarations and overloads", async () => {
+    const relativePath = "src/merged.ts";
+    const nodes = await extractSource({
+      relativePath,
+      source: `
+        export interface Shared {}
+        export class Shared {}
+        export function overloaded(value: string): string;
+        export function overloaded(value: number): number;
+        export function overloaded(value: string | number) { return String(value); }
+      `,
+    });
+    const declarations = nodes.filter((node) => node.type !== "module");
+    expect(declarations.map((node) => node.name)).toEqual([
+      "Shared",
+      "Shared",
+      "overloaded",
+      "overloaded",
+      "overloaded",
+    ]);
+    expect(new Set(declarations.map((node) => node.id)).size).toBe(declarations.length);
+    expect(declarations.map((node) => node.id)).toEqual([
+      istNodeId(relativePath, "Shared"),
+      istNodeId(relativePath, "Shared#2"),
+      istNodeId(relativePath, "overloaded"),
+      istNodeId(relativePath, "overloaded#2"),
+      istNodeId(relativePath, "overloaded#3"),
+    ]);
+  });
+
   it("emits a class node for `export default class`", async () => {
     const nodes = await extractSource({
       relativePath: "src/default.ts",

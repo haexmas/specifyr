@@ -6,6 +6,7 @@ import { ModelSchema } from "../../core/schemas.js";
 import { extractSource } from "./extract-source.js";
 import { walkTsFiles } from "./walk.js";
 
+/** Build an IST model from all supported TypeScript files below a repository root. */
 export async function extractIst(repoRoot: string): Promise<Model> {
   const files = await walkTsFiles(repoRoot);
   const allNodes: Node[] = [];

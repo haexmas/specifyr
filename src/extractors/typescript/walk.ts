@@ -5,12 +5,14 @@ export const SKIP_DIRS = new Set(["node_modules", "dist", ".output", ".nuxt", ".
 
 const TS_EXTENSIONS = new Set([".ts", ".tsx"]);
 
+/** Return sorted repository-relative paths for supported TypeScript files. */
 export async function walkTsFiles(root: string): Promise<string[]> {
   const results: string[] = [];
   await walk(root, root, results);
   return results.sort();
 }
 
+/** Recursively collect supported files while respecting the fixed skip list. */
 async function walk(root: string, dir: string, out: string[]): Promise<void> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {

@@ -20,11 +20,14 @@ const TOP_LEVEL_KINDS: Record<string, string> = {
   type_alias_declaration: "type-alias",
   enum_declaration: "enum",
   function_declaration: "function",
+  function_signature: "function",
 };
 
+/** Extract supported top-level TypeScript declarations from one source file. */
 export async function extractSource({ relativePath, source }: Source): Promise<Node[]> {
   const tree = await parseTypeScript(source);
   const nodes: Node[] = [];
+  const nameOccurrences = new Map<string, number>();
 
   nodes.push({
     id: istNodeId(relativePath, ""),
@@ -37,10 +40,19 @@ export async function extractSource({ relativePath, source }: Source): Promise<N
     const declaration = unwrapExport(child);
     const emittedType = TOP_LEVEL_KINDS[declaration.type];
     if (!emittedType) continue;
-    const name = declaration.childForFieldName("name")?.text;
+    const nameNode =
+      declaration.childForFieldName("name") ??
+      (declaration.type === "function_signature" ? declaration.namedChildren[0] : undefined);
+    const name = nameNode?.text;
     if (!name) continue;
+    const occurrence = nameOccurrences.get(name) ?? 0;
+    nameOccurrences.set(name, occurrence + 1);
+    // Keep the first declaration's historical ID and suffix later occurrences
+    // in source order. This makes declaration merges and overloads unique while
+    // remaining deterministic for the same file contents.
+    const qualifiedName = occurrence === 0 ? name : `${name}#${occurrence + 1}`;
     nodes.push({
-      id: istNodeId(relativePath, name),
+      id: istNodeId(relativePath, qualifiedName),
       type: emittedType,
       name,
       classes: [],
@@ -50,13 +62,16 @@ export async function extractSource({ relativePath, source }: Source): Promise<N
   return nodes;
 }
 
-// `export class Foo {}` parses as export_statement > class_declaration, and
-// `declare class Foo {}` parses as ambient_declaration > class_declaration.
-// Peel one level of either wrapper to reach the actual declaration.
+// `export declare class Foo {}` parses as
+// export_statement > ambient_declaration > class_declaration. Peel all
+// consecutive export/ambient wrappers to reach the actual declaration.
+/** Remove syntax-only export and ambient wrappers from a declaration node. */
 function unwrapExport(node: TsNode): TsNode {
-  if (node.type === "export_statement" || node.type === "ambient_declaration") {
-    const first = node.namedChildren[0];
-    if (first) return first;
+  let current = node;
+  while (current.type === "export_statement" || current.type === "ambient_declaration") {
+    const first = current.namedChildren[0];
+    if (!first) break;
+    current = first;
   }
-  return node;
+  return current;
 }

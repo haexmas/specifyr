@@ -11,6 +11,7 @@ const require_ = createRequire(import.meta.url);
 // don't race Parser.init.
 let cachedParser: Promise<Parser> | undefined;
 
+/** Parse TypeScript or TSX source using the lazily initialized tree-sitter parser. */
 export async function parseTypeScript(source: string): Promise<Tree> {
   cachedParser ??= initParser();
   const parser = await cachedParser;
@@ -21,6 +22,7 @@ export async function parseTypeScript(source: string): Promise<Tree> {
   return tree;
 }
 
+/** Load the TSX grammar and create the shared tree-sitter parser instance. */
 async function initParser(): Promise<Parser> {
   await Parser.init({
     locateFile(scriptName: string): string {

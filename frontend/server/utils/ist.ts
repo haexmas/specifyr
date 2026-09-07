@@ -1,6 +1,7 @@
 import type { Model } from "specifyr";
 import { extractIst } from "specifyr/extractors/typescript";
 
+/** Load the live IST model for the repository selected by the editor process. */
 export async function loadIstForRequest(): Promise<Model> {
   // Assumes nitro.preset "node-server" — process.env is stable across requests.
   // If moving to an edge preset later, read from event context instead.

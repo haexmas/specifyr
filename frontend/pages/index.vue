@@ -67,7 +67,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
       Error: {{ (error.data as { error?: string })?.error ?? error.message }}
     </div>
     <div v-else-if="!data?.nodes?.length" class="editor-status">
-      SOLL is empty — no nodes to display.
+      {{ view.toUpperCase() }} is empty — no nodes to display.
     </div>
     <div v-else class="editor-canvas">
       <VueFlow :nodes="flowNodes" :edges="flowEdges" :nodes-draggable="false" :nodes-connectable="false" :elements-selectable="false">

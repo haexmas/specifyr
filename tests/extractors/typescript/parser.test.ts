@@ -22,5 +22,6 @@ describe("parseTypeScript", () => {
   it("does not throw on syntactically invalid input (produces error nodes instead)", async () => {
     const tree = await parseTypeScript("export class");
     expect(tree.rootNode.type).toBe("program");
+    expect(tree.rootNode.hasError).toBe(true);
   });
 });

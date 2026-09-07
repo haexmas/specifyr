@@ -1,3 +1,3 @@
 <template>
-  <div>specifyr editor (booting)</div>
+  <NuxtPage />
 </template>

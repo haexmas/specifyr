@@ -41,8 +41,10 @@ refresh the browser to pick up on-disk changes. Click **IST** in the TopBar
 to see the TypeScript IST of the same repo: every `.ts` / `.tsx` file becomes
 a `module` node, plus top-level `class` / `interface` / `type-alias` / `enum`
 / `function` nodes. `import ... from "./..."` statements are drawn as arrows
-between modules. Extends/implements edges and per-symbol edges land in a
-later slice.
+between modules. Nodes are auto-laid out via ELK.js (`layered` algorithm,
+top-down) so imports flow from top to bottom; a brief "laying out…"
+indicator appears in the TopBar while ELK crunches larger graphs.
+Extends/implements edges and per-symbol edges land in a later slice.
 
 Or install globally (once published to npm) with `npm i -g specifyr`.
 
@@ -54,8 +56,9 @@ Slice 3: CLI skeleton — `specifyr init` and `specifyr status`. ✅
 Slice 4: vocabulary packs v1 — ten shipped language packs + loader + resolver. ✅
 Slice X: read-only visual editor — `specifyr editor` opens a Vue Flow graph of the SOLL in the browser. ✅
 Slice A: TypeScript IST extractor via tree-sitter WASM (nodes only) + TopBar SOLL/IST segmenter. ✅
-Slice B (current): IST `imports` edges — module→module dependencies drawn as arrows in the Vue Flow graph. ✅
-Slice C+ (planned): extends/implements edges, Python + Java IST, SOLL↔IST drift matching, auto-layout, editing via MCP.
+Slice B: IST `imports` edges — module→module dependencies drawn as arrows in the Vue Flow graph. ✅
+Slice ELK (current): ELK.js `layered` auto-layout replaces the 4-column grid. ✅
+Slice C+ (planned): extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
 
 ## License
 

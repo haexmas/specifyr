@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import open from "open";
+import { describe, expect, it, vi } from "vitest";
 import { editorChildEnv, runEditor, waitForHttpReady } from "../../../src/cli/commands/editor.js";
+
+vi.mock("open", () => ({ default: vi.fn() }));
 
 describe("editorChildEnv", () => {
   it("sets SPECIFYR_REPO_PATH and PORT and preserves the rest", () => {
@@ -93,6 +96,27 @@ describe("runEditor", () => {
       await expect(runEditor({ repoPath: "/tmp/repo", port, openBrowser: false })).rejects.toThrow(
         /already in use/i,
       );
+    } finally {
+      server.close();
+    }
+  });
+
+  it("shuts down the frontend when opening the browser fails", async () => {
+    const { createServer } = await import("node:http");
+    const portProbe = createServer();
+    await new Promise<void>((resolve) => portProbe.listen(0, "127.0.0.1", resolve));
+    const port = (portProbe.address() as { port: number }).port;
+    await new Promise<void>((resolve) => portProbe.close(() => resolve()));
+
+    vi.mocked(open).mockRejectedValueOnce(new Error("browser unavailable"));
+    await expect(runEditor({ repoPath: "/tmp/repo", port })).rejects.toThrow("browser unavailable");
+
+    const server = createServer((_req, res) => res.end("port is free"));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(port, "127.0.0.1", () => resolve());
+      });
     } finally {
       server.close();
     }

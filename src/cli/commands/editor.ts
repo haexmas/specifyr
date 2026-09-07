@@ -127,7 +127,12 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
   process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
 
   if (openBrowser) {
-    await open(url);
+    try {
+      await open(url);
+    } catch (cause) {
+      await shutdown();
+      throw cause;
+    }
     process.stdout.write("Browser opened.\n");
   }
 

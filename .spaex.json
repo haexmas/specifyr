@@ -1,9 +1,7 @@
 {
   "compounds": [
     {
-      "molecules": [
-        "com.github.haexmas.atoms.graphify-first-authoring"
-      ],
+      "molecules": ["com.github.haexmas.atoms.graphify-first-authoring"],
       "revision": "c1db86a1fda27b2d9c5cd82fe3a66b9c01f9e1fa",
       "source": "https://github.com/haexmas/atoms"
     }

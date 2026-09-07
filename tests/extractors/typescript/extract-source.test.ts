@@ -57,4 +57,55 @@ describe("extractSource", () => {
     const nodes = await extractSource({ relativePath: "src/deep/module.ts", source: "" });
     expect(nodes[0]?.name).toBe("src/deep/module.ts");
   });
+
+  it("emits a class node for an abstract class", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/abstract.ts",
+      source: "export abstract class Base {}\n",
+    });
+    const cls = nodes.find((n) => n.type === "class");
+    expect(cls?.name).toBe("Base");
+  });
+
+  it("emits a class node for a `declare class` ambient declaration", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/ambient.d.ts",
+      source: "declare class Global {}\n",
+    });
+    const cls = nodes.find((n) => n.type === "class");
+    expect(cls?.name).toBe("Global");
+  });
+
+  it("emits a class node for `export default class`", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/default.ts",
+      source: "export default class Main {}\n",
+    });
+    const cls = nodes.find((n) => n.type === "class");
+    expect(cls?.name).toBe("Main");
+  });
+
+  it("does not emit anything for namespaces (deferred)", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/ns.ts",
+      source: "namespace Foo { export class Bar {} }\n",
+    });
+    // Only the module node — namespace and its Bar inside are deferred.
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.type).toBe("module");
+  });
+
+  it("extracts top-level declarations from a .tsx file with JSX in a function body", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/App.tsx",
+      source: [
+        "export interface AppProps { title: string }",
+        "export function App(props: AppProps) {",
+        "  return <div>{props.title}</div>;",
+        "}",
+      ].join("\n"),
+    });
+    const names = nodes.map((n) => n.name).sort();
+    expect(names).toEqual(["App", "AppProps", "src/App.tsx"]);
+  });
 });

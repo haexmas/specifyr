@@ -12,7 +12,12 @@ export async function extractIst(repoRoot: string): Promise<Model> {
 
   for (const relativePath of files) {
     const source = await readFile(join(repoRoot, relativePath), "utf8");
-    const nodes = await extractSource({ relativePath, source });
+    let nodes: Node[];
+    try {
+      nodes = await extractSource({ relativePath, source });
+    } catch (cause) {
+      throw new Error(`extractSource failed for ${relativePath}`, { cause });
+    }
     allNodes.push(...nodes);
   }
 

@@ -9,7 +9,12 @@ interface Source {
 }
 
 // Map tree-sitter node type -> our vocabulary node type.
+// Namespaces / internal_module are intentionally NOT emitted in Slice A.
+// They contain other declarations and require a "namespace" vocabulary type
+// (deferred). Declarations INSIDE a namespace are also skipped for the same
+// reason; a later slice will surface both.
 const TOP_LEVEL_KINDS: Record<string, string> = {
+  abstract_class_declaration: "class",
   class_declaration: "class",
   interface_declaration: "interface",
   type_alias_declaration: "type-alias",
@@ -45,10 +50,11 @@ export async function extractSource({ relativePath, source }: Source): Promise<N
   return nodes;
 }
 
-// `export class Foo {}` parses as export_statement > class_declaration.
-// Peel one level of export_statement to reach the actual declaration.
+// `export class Foo {}` parses as export_statement > class_declaration, and
+// `declare class Foo {}` parses as ambient_declaration > class_declaration.
+// Peel one level of either wrapper to reach the actual declaration.
 function unwrapExport(node: TsNode): TsNode {
-  if (node.type === "export_statement") {
+  if (node.type === "export_statement" || node.type === "ambient_declaration") {
     const first = node.namedChildren[0];
     if (first) return first;
   }

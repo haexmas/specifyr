@@ -2,11 +2,18 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { Language, Parser, type Tree } from "web-tree-sitter";
 
+// createRequire: package-shipped WASM must be resolved from disk at runtime.
+// import.meta.resolve isn't stable in Node's ESM loader for arbitrary asset
+// paths, so use the CJS-style resolver.
 const require_ = createRequire(import.meta.url);
-let cachedParser: Parser | undefined;
+
+// Cache the promise (not the resolved parser) so concurrent first calls
+// don't race Parser.init.
+let cachedParser: Promise<Parser> | undefined;
 
 export async function parseTypeScript(source: string): Promise<Tree> {
-  const parser = await getParser();
+  cachedParser ??= initParser();
+  const parser = await cachedParser;
   const tree = parser.parse(source);
   if (!tree) {
     throw new Error("tree-sitter failed to produce a parse tree");
@@ -14,9 +21,7 @@ export async function parseTypeScript(source: string): Promise<Tree> {
   return tree;
 }
 
-async function getParser(): Promise<Parser> {
-  if (cachedParser) return cachedParser;
-
+async function initParser(): Promise<Parser> {
   await Parser.init({
     locateFile(scriptName: string): string {
       if (scriptName.endsWith(".wasm")) {
@@ -26,12 +31,13 @@ async function getParser(): Promise<Parser> {
     },
   });
 
-  const wasmPath = require_.resolve("tree-sitter-typescript/tree-sitter-typescript.wasm");
+  // Use the TSX grammar (superset of TS) for both .ts and .tsx files so
+  // .tsx files with JSX outside function bodies still parse cleanly.
+  const wasmPath = require_.resolve("tree-sitter-typescript/tree-sitter-tsx.wasm");
   const wasmBytes = await readFile(wasmPath);
   const language = await Language.load(wasmBytes);
 
   const parser = new Parser();
   parser.setLanguage(language);
-  cachedParser = parser;
   return parser;
 }

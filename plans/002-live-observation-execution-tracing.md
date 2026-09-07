@@ -3,9 +3,9 @@
 - Status: DRAFT — Produkt- und Umsetzungsvorschlag für Stufe 5a.
 - Priorität: P2; Aufwand: L; Risiko: HIGH (Browser-Instrumentierung experimentell,
   Korrelation Frontend↔Backend ohne globalen Zustand ist nicht trivial).
-- Basis: [Plan 001 „Perspektiven und Vergleich"](001-editor-perspectives-and-state-comparison.md);
+- Basis: [Plan 001 „Perspektiven und Vergleich“](001-editor-perspectives-and-state-comparison.md);
   gemeinsames Modell, SourceRefs, IST-Extraktion und C4-Aggregation stammen dort her.
-- Referenzfall: „Artefakt-Auswahl in ANALYZE" über analyze-frontend/analyze-backend.
+- Referenzfall: „Artefakt-Auswahl in ANALYZE“ über analyze-frontend/analyze-backend.
 
 ## Ziel und Erfolgskriterium
 
@@ -16,7 +16,7 @@ Ereignisse werden nachgetragen; nicht zuordenbare Ereignisse bleiben sichtbar.
 
 Erster sichtbarer Erfolg: ein echter Klick, ein sichtbarer Request, ein
 Store-Feld vor/nach der Änderung, ein Backend-Span am zugeordneten IST-Baustein
-und mindestens ein Eintrag „nicht zugeordnet", der belegt, dass Lücken benannt
+und mindestens ein Eintrag „nicht zugeordnet“, der belegt, dass Lücken benannt
 werden statt still zu verschwinden.
 
 ## Zielnutzer und Nichtziel
@@ -47,18 +47,18 @@ Beobachtung noch vergangene Ausführungen.
 
 - Bekannte Schritte aktivieren ihre IST-Bausteine; Entwurfsmodelle bleiben unverändert.
 - Nicht zugeordnete IST-Schritte erscheinen als temporäre Knoten oder in einer
-  sichtbaren Liste „nicht zugeordnet". Sie werden nicht ausgeblendet.
+  sichtbaren Liste „nicht zugeordnet“. Sie werden nicht ausgeblendet.
 - Unerwartete, aber belegte Verbindungen können als zusätzliche Kanten erscheinen.
-- Ein erwarteter Schritt bleibt „nicht beobachtet", bis Szenariobedingungen und
+- Ein erwarteter Schritt bleibt „nicht beobachtet“, bis Szenariobedingungen und
   Messabdeckung eine weitergehende Bewertung erlauben.
 - Im optionalen Vergleich können SOLL-Regeln Abweichungen markieren, etwa
   erneutes Laden trotz warmem Cache.
 
 ## Interaktion
 
-1. In IST die Perspektive und den Fokus „Artefakt-Auswahl" öffnen. Beobachtung
+1. In IST die Perspektive und den Fokus „Artefakt-Auswahl“ öffnen. Beobachtung
    aktivieren und die richtige Browser-/Backend-Diagnosesitzung verbinden.
-2. „Nächste Artefakt-Auswahl aufzeichnen" aktivieren und im ANALYZE-Browser
+2. „Nächste Artefakt-Auswahl aufzeichnen“ aktivieren und im ANALYZE-Browser
    klicken. Die Aktion bekommt eine eigene Identität; andere Tabs und
    überlappende Klicks bleiben getrennt. Langlaufende Folgevorgänge werden
    explizit verknüpft.
@@ -89,27 +89,40 @@ Funktionsschritte braucht es zusätzliche gezielte Hooks oder Instrumentierung
 beim Build. Keine Vollständigkeit versprechen, wo nur Store- oder HTTP-Grenzen
 instrumentiert sind.
 
-Ein `RuntimeEvent` trägt sessionId, actionId, eventId, kind, traceId/spanId
-(falls vorhanden), Ursache/Links, serviceId, SourceRef, lokale Sequenznummer,
-Zeit und StateDeltaRef. Umfang und Ursache können ausdrücklich unbekannt sein.
-Gleichzeitige Actions dürfen nicht über eine globale „aktuelle Aktion"-Variable
-vermischt werden. Kontext über await, Timer, Watcher und HTTP gezielt testen;
-bei fehlendem Beleg keine Zuordnung nur aus zeitlicher Nähe.
+Ein `RuntimeEvent` trägt sessionId, actionId, `correlationKey`, eventId, kind,
+traceId/spanId (falls vorhanden), Ursache/Links, serviceId, `buildId`, SourceRef,
+lokale Sequenznummer, Zeit und StateDeltaRef. Die stabile Korrelation besteht
+aus `(sessionId, actionId, requestId)`; `requestId` wird beim Start jedes Requests
+opak erzeugt und als Kontextattribut bzw. Header bis in Backend-Span und
+Debuggeradapter weitergegeben. Ein Live-`DebuggerStop` übernimmt denselben
+Schlüssel und zusätzlich stopId, SourceRef und buildId.
+
+Der Kontext wird explizit an Promise-Fortsetzungen nach `await`, Timer und
+Watcher gebunden; überlappende Actions führen getrennte Schlüssel. Späte
+Ereignisse werden mit ihrem Schlüssel nachgetragen und als spät markiert, aber
+nicht einer anderen Aktion zugeschrieben. Fehlt der Schlüssel oder sein Beleg,
+bleibt das Ereignis „nicht zugeordnet“; eine globale „aktuelle Aktion“-Variable
+und Zuordnung allein aus zeitlicher Nähe sind verboten. Der Spike testet diese
+Fälle einschließlich mehrerer Requests pro Aktion.
 
 State-Aufzeichnung: freigegebene Felder, Serialisierungsregeln, Größenlimits,
 Redaktion vor Export, unveränderliche Kopien statt Referenzen auf lebende
-Objekte. Keine vollständigen Store-Kopien bei jedem Ereignis. Fehlende Deltas
-unterbrechen die Rekonstruktion sichtbar bis zum nächsten vollständigen
-Checkpoint. DB-Spans belegen Operationen; Vorher-/Nachher-Werte in der
-Datenbank benötigen zusätzliche fachliche Ereignisse oder gesonderte Erfassung.
+Objekte. Keine vollständigen Store-Kopien bei jedem Ereignis. Ein fehlendes
+Delta wird als persistiertes `stateGap` mit Ursache, betroffener Sequenz und
+letztem sicheren Checkpoint gespeichert. Ab der Lücke darf Replay den letzten
+bekannten Zustand nicht weiter als aktuell anzeigen: Es pausiert bis zum
+nächsten vollständigen Checkpoint oder markiert den Zustand als unbekannt und
+wendet keine Deltas aus der unsicheren Strecke an. DB-Spans belegen Operationen;
+Vorher-/Nachher-Werte in der Datenbank benötigen zusätzliche fachliche Ereignisse
+oder gesonderte Erfassung und gehören nicht zur Mindestinstrumentierung.
 
 ## Mindestinstrumentierung (harte Untergrenze)
 
 Ohne die folgenden Belege liefert 5a nur ein Live-Bild mit Löchern und darf
-nicht als „Live-Beobachtung" ausgeliefert werden:
+nicht als „Live-Beobachtung“ ausgeliefert werden:
 
 - Action-/Request-Korrelation zwischen einem Klick im Frontend und dem
-  ausgelösten HTTP-Vorgang, ohne globale „aktuelle Action"-Variable und ohne
+  ausgelösten HTTP-Vorgang, ohne globale „aktuelle Action“-Variable und ohne
   alleinige Zuordnung aus zeitlicher Nähe.
 - Store-Grenze für mindestens einen Pinia-Store: Startzustand plus geordnete
   Deltas ausgewählter Felder mit stabiler Serialisierung.
@@ -117,7 +130,7 @@ nicht als „Live-Beobachtung" ausgeliefert werden:
   auslösenden Action.
 - Serverseitige Traces/Spans mit gemeinsamem Trace-Kontext über die
   Frontend-Backend-Grenze hinweg.
-- Sichtbare Liste „nicht zugeordnet" für Ereignisse ohne IST-Bezug, ausdrücklich
+- Sichtbare Liste „nicht zugeordnet“ für Ereignisse ohne IST-Bezug, ausdrücklich
   kein stilles Wegfallen.
 
 Watcher, lokale Vue-Refs, JointJS-Zustand und detaillierte Funktionsschritte
@@ -127,10 +140,15 @@ Aufwandsposten und eigener Abnahme.
 
 ## Abnahme
 
-- Ein echter Browserklick wird bis zu Backend-/DB-Belegen in IST dargestellt.
+- Ein echter Browserklick wird bis zu mindestens einem zugeordneten
+  serverseitigen Backend-Trace/Span in IST dargestellt. DB-Spans dürfen als
+  zusätzliche Evidenz erscheinen, sind aber kein 5a-Abnahmekriterium; DB-
+  Vorher-/Nachher-Werte bleiben ausdrücklich außerhalb des Umfangs.
 - Ein ausgewähltes Store-Feld ist vor/nach einer Änderung sichtbar.
 - Mindestens ein unzugeordneter Schritt bleibt erhalten und ist als solcher
   markiert.
+- Ein Debugger-Stop kann über den `correlationKey` live zugeordnet werden,
+  bevor der zugehörige Span exportiert ist.
 - Alle Punkte der Mindestinstrumentierung tragen im Referenzfall.
 - Root-Gates grün: `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 - Reproduzierbare Live-Abnahme protokolliert.
@@ -144,7 +162,7 @@ Stufe 5b darf erst begonnen werden, wenn zusätzlich zu den Abnahmepunkten oben:
 - Die Nicht-Zuordnungsliste verdeckt kein stilles Falsch-Zuordnen (durch
   eingebrachte falsche Korrelation im Test nachweisbar).
 - Ein neu hinzugekommener Store im Referenzcode wird ohne Änderung am Werkzeug
-  sichtbar oder ist explizit als „nicht instrumentiert" markiert.
+  sichtbar oder ist explizit als „nicht instrumentiert“ markiert.
 
 ## Vorbereitung in vorgelagerten Stufen
 

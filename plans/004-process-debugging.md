@@ -27,21 +27,21 @@ Backend-Schritt ausführen und fortsetzen.
 Zielnutzer ist der Entwickler mit erweitertem Backend-Debuggerzugriff auf eine
 Entwicklungsinstanz. Nicht das Ziel: automatisch atomarer Halt des verteilten
 Systems, deterministisches Wieder-Ausführen der gesamten Anwendung, Rollback
-ihrer Nebenwirkungen, garantierte „Architektur-Schrittoperation" über DAP.
+ihrer Nebenwirkungen, garantierte „Architektur-Schrittoperation“ über DAP.
 
 ## Verbindlicher Zielablauf: Browserklick → Backend in IST debuggen
 
 Bedienung für ANALYZE:
 
-1. In specifyr die IST-Perspektive „Backend" öffnen und mit einer geeigneten
+1. In specifyr die IST-Perspektive „Backend“ öffnen und mit einer geeigneten
    Entwicklungsinstanz von analyze-backend verbinden. Frontend, Backend-Build,
    SourceRefs und IST-Snapshot dieser Sitzung identifizieren.
 2. Auf einer IST-Methode oder einem IST-Baustein — beispielsweise dem
-   implementierten Artefakt-Service — „Bei Eintritt anhalten" wählen. Die
+   implementierten Artefakt-Service — „Bei Eintritt anhalten“ wählen. Die
    Zuordnung zum ausgeführten Build liefert die konkreten Methoden/
    Quellstellen. Bei mehreren möglichen Einstiegspunkten auswählen lassen oder
    die konkrete Gruppe anzeigen. Der Debugger muss das Setzen bestätigen.
-3. „Nächste Artefakt-Auswahl verfolgen" aktivieren und im ANALYZE-Browser
+3. „Nächste Artefakt-Auswahl verfolgen“ aktivieren und im ANALYZE-Browser
    klicken. Der echte Request erreicht das Backend. Die aus Plan 002
    bekannte Aktions-/Request-Korrelation verbindet diesen Eingang mit der
    ausgewählten Frontend-Interaktion.
@@ -49,7 +49,7 @@ Bedienung für ANALYZE:
    wird markiert; der Inspector zeigt aktuelle Quellstelle, Callstack und die
    im pausierten Kontext verfügbaren Variablen (etwa Artefakt-ID und
    Methodenparameter).
-5. „Hinein", „Darüber", „Heraus" und „Fortsetzen" steuern den Backend-Debugger.
+5. „Hinein“, „Darüber“, „Heraus“ und „Fortsetzen“ steuern den Backend-Debugger.
    Die IST-Markierung folgt der aktuell ausgeführten Implementierung. Mehrere
    Quellschritte können im selben Architekturbaustein bleiben. „Nächster
    Baustein" ist eine spätere zusammengesetzte Operation mit bestätigten
@@ -69,9 +69,14 @@ Bedienung für ANALYZE:
 - Quellzuordnung und Projektion zeigen diese Ausführung in IST.
 
 Ein Debugger-Stopp muss sofort angezeigt werden können, auch wenn der
-zugehörige Span noch offen und noch nicht exportiert ist. Die Korrelation darf
-deshalb nicht ausschließlich auf nachträglich eingetroffenen Trace-Exports
-beruhen. DAP liefert eine Trace-/Request-Zuordnung nicht automatisch.
+zugehörige Span noch offen und noch nicht exportiert ist. Der Debuggeradapter
+sendet dafür über einen direkten Live-Kanal eine `DebuggerStop`-Meldung mit dem
+aus Plan 002 übernommenen `correlationKey`, `buildId`, stopId und SourceRef;
+alternativ fragt die IST-Ansicht diesen Schlüssel live beim Adapter nach. Die
+Zuordnung darf nicht vom späteren Trace-Export abhängen. Später exportierte
+Spans werden über denselben Schlüssel ergänzt. Fehlt er, bleibt der Stopp
+sichtbar, aber nicht zugeordnet. DAP liefert eine Trace-/Request-Zuordnung nicht
+automatisch.
 
 ## Grenzen und Risiken
 

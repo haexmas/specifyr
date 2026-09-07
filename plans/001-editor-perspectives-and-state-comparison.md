@@ -272,6 +272,17 @@ danach Integration vorhandener Telemetrie. Architektur-JSON bleibt git-fähig,
 große Trace-Daten liegen separat lokal oder in einem vorhandenen Trace-Backend.
 Keine Graphdatenbank oder eigene Telemetrieplattform als Voraussetzung.
 
+Für produktive Trace-Daten gelten vor Beginn einer kontrollierten Aufzeichnung
+verbindliche Schutzregeln: Zugriff ist authentifiziert, rollenbasiert und auf die
+für Diagnose nötigen Personen sowie Felder beschränkt; sensible Felder werden
+vor Speicherung oder Export nach einer versionierten Allowlist redigiert. Jede
+Aufzeichnung erhält eine dokumentierte maximale Aufbewahrungsdauer und einen
+prüfbaren Löschpfad einschließlich abgeleiteter Exporte und Backups, soweit diese
+unter der Kontrolle des Systems liegen. Tokens, Zugangsdaten und Nutzerinhalte
+werden weder in Architektur-JSON noch in Trace-Daten übernommen. Architektur-
+JSON bleibt versionierbar; Trace-Daten, Zugriffskontrollen und Löschprotokolle
+bleiben separat gespeichert.
+
 Request-Zahlen unterscheiden Beobachtung pro Aktion, Zeitfenster, Cache-Zustand,
 Umgebung und Sampling. [OpenTelemetry Sampling](https://opentelemetry.io/docs/concepts/sampling/)
 reduziert die aufgezeichneten Traces: Ein gesampelter Ausschnitt darf nicht als
@@ -412,19 +423,36 @@ Dateisystem / Sprache / Framework / Speckit / Trace-Import
 
 Benötigte Verträge, schrittweise ergänzt:
 
-- `SourceRef`: repoId, relativer Pfad, Symbol, optionale Quellspanne, Revision.
+- `SourceRef`: repoId, `buildId`, relativer Pfad, Symbol, optionale Quellspanne,
+  Revision. `buildId` identifiziert das tatsächlich gebaute bzw. ausgeführte
+  Artefakt unveränderlich; ein gleicher Commit mit anderem Build ist damit eine
+  andere Quell-/Laufzeitzuordnung.
 - `Snapshot`: Stand, Revisionen je Repo, Arbeitsbaum-Digests, Erzeugungszeit,
-  Adapterversionen und Abdeckungsdiagnosen.
-- `EntityRef`: repo-/snapshotbezogene Referenz; getrennt davon dauerhafte
+  `buildId` je ausgeführtem Artefakt, Adapterversionen und Abdeckungsdiagnosen.
+- `EntityRef`: kanonischer Schlüssel `(repoId, snapshotId, localNodeId)`;
+  getrennt davon dauerhafte
   fachliche Identität und versionierte Zuordnungen mit Herkunft/Bestätigung.
 - `RelationEvidence`: Code/Vertrag/Beobachtung/Vorschlag, Fundstelle und Bedingungen.
 - `ViewDefinition`: Perspektive, Fokus, Filter, Gruppierung, sichtbare Relationen.
 - `Scenario`: Trigger, Vorbedingungen, Erwartungen und zugeordnete Durchläufe.
+- `RuntimeEvidence`: `buildId`, `sessionId`, `correlationKey`, RuntimeEvent-
+  Referenzen, SourceRefs und Abdeckungsstatus.
+- `Recording` und `DebugSession`: `buildId`, `snapshotId`, `sessionId` bzw.
+  `correlationKey`, damit Aufzeichnungen und Debugger-Stopps nur mit dem
+  tatsächlich ausgeführten Build verglichen oder verknüpft werden.
+
+`buildId` wird bei Zuordnung, Vergleich und Anzeige neben Repository, Commit und
+Snapshot geprüft. Fehlt die Build-Identität oder stimmt sie nicht überein, bleibt
+die Evidenz als nicht eindeutig bzw. Build-Mismatch sichtbar und wird nicht still
+dem lokalen Quellstand zugeschrieben.
 
 Bestehende sichere Node-ID-Regel nicht beiläufig aufweiten. Zusammengesetzte
 Repo-/Snapshot-Referenzen außerhalb des bestehenden lokalen ID-Felds führen oder
 eine explizite Migration planen. `NodeSchema.catchall` allein ist keine belastbare
 Validierung dieser Verträge; neue persistierte Daten bekommen eigene Zod-Schemas.
+Der kanonische `EntityRef`-Schlüssel gilt für Graphknoten und -kanten, Auswahl,
+Caches sowie persistierte Zuordnungen. Er wird als strukturierter Vertrag geführt
+und nicht durch eine beiläufig erweiterte lokale Node-ID ersetzt.
 
 Projektionsreihenfolge: Scope → Relationen/Fokus → Gruppierung → sichtbare
 Kanten/Restindikatoren → Layout. Auswahl ändert kein Layout; ein expliziter
@@ -518,7 +546,10 @@ Geplante Bereiche: `src/workspace/`, `src/extractors/vue/`,
 Abnahme: oben belegter Auswahlzweig einschließlich Watcher, Cache-Bedingung,
 HTTP-Grenze und Storage-Interface; aktive Implementierung nur mit Profilbeleg.
 Anonymisierte minimale Zwei-Repo-Fixture in specifyr; keine Tests abhängig von
-privaten sibling checkouts. Gate: Adapter-/Contract-/Szenario-Tests plus Root-Prüfungen.
+privaten sibling checkouts. Die Fixture enthält absichtlich identische relative
+Pfade und Symbole in beiden Repositories und prüft vor dem Gate, dass sie über
+`(repoId, snapshotId, localNodeId)` getrennt bleiben. Gate: Adapter-/Contract-/
+Szenario-Tests plus Root-Prüfungen.
 
 ### Stufe 5 — Beobachtete Abläufe, Häufigkeiten und Regelverletzungen
 
@@ -528,9 +559,12 @@ Geplante specifyr-Bereiche: `src/observations/`, `src/core/scenarios/`, Trace-AP
 und Ablauf-UI. Änderungen an ANALYZE wären ein eigener begrenzter Folgeauftrag.
 Abnahmefixtures: Cache kalt/warm, zusätzliches Artefakt-Nachladen, wiederholte
 Auswahl, explizit erlaubter Retry, unzulässige Wiederholung, verlorener Kontext,
-unvollständige Messung und abweichende Buildrevision.
-Gate: Import-/Korrelations-/Regeltests plus Root-Prüfungen; danach kontrollierte
-Aufzeichnung im echten System. Kein Live-System wurde in dieser Planung gestartet.
+unvollständige Messung und abweichende Buildrevision. Vor einer kontrollierten
+Aufzeichnung im echten System müssen die Schutzregeln für Zugriff, Redaction,
+Aufbewahrung und Löschung dokumentiert, technisch konfiguriert und mit einem
+Löschtest nachgewiesen sein. Architektur-JSON und Trace-Speicher werden dabei
+getrennt geprüft. Gate: Import-/Korrelations-/Regeltests plus Root-Prüfungen
+und dieses Datenschutz-Gate. Kein Live-System wurde in dieser Planung gestartet.
 
 
 ## Stufen 5a, 5b und 6: eigene Pläne

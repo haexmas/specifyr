@@ -36,7 +36,7 @@ Codeänderungen.
 ## Fähigkeiten
 
 - Zeitleiste über korrelierte Ereignisse einer Aktion; „Nächste Zustands-
-  änderung", „nächster Request", „nächste Abweichung", „in diesen Baustein
+  änderung“, „nächster Request“, „nächste Abweichung“, „in diesen Baustein
   hinein" begrenzen die Menge.
 - Vor/zurück durch die Aufzeichnung; Inspector zeigt den ausgewählten Aufruf,
   die Ursache (soweit belegt), die Quellstelle und die erfassten
@@ -50,20 +50,38 @@ Codeänderungen.
 - KI kann erklären, warum der ausgewählte Schritt erfolgte, soweit
   Ursachenbelege vorhanden sind.
 
-## Was „Vergleich zweier Durchläufe" heißt
+## Was „Vergleich zweier Durchläufe“ heißt
 
 Verglichen werden nicht Zeitachsen, sondern eine pro Klick-Aktion geordnete
 Menge korrelierter Ereignisse:
 
-- Requests mit Ziel und Statusfamilie.
+- Requests mit normalisiertem Ziel und exaktem HTTP-Statuscode.
 - Zustandsdeltas ausgewählter Store-Felder.
 - Spans an vereinbarten Beobachtungspunkten.
 
+Die Zuordnung verwendet keinen laufspezifischen `RuntimeEvent.eventId`. Jeder
+Klick erhält stattdessen einen über Durchläufe stabilen `actionKey` aus Szenario-
+ID, stabiler Aktionsnummer und normalisiertem Trigger. Ein Ereignis erhält einen
+`eventKey` aus `actionKey`, normalisiertem Typ, normalisierter Source-/Service-
+Referenz, normalisiertem Ziel und dem normalisierten kausalen Vorgängerpfad.
+Mehrfache gleichartige Geschwister werden durch ihre laufstabile Vorkommensnummer
+innerhalb dieses kausalen Elternknotens unterschieden. `traceId`, `spanId`,
+`eventId` und Zeitstempel sind dafür keine Identität.
+
+Kausale Eltern- und Link-Beziehungen werden vor dem Vergleich auf diese
+`eventKey`s normalisiert. Nebenläufige Ereignisse werden als ungeordnete
+Geschwistermengen unter demselben kausalen Elternknoten zugeordnet; ihre
+Zeitstempel- oder Ankunftsreihenfolge erzeugt keinen Unterschied. Fehlt ein
+stabiler Schlüssel, landet das Ereignis separat als nicht korrelierbar und wird
+nicht mit einem anderen Ereignis erzwungen zusammengeführt.
+
 Ein Unterschied ist ein fehlendes oder zusätzliches Ereignis, ein abweichender
-Zielendpunkt oder ein anderer Statusausgang. Reine Timingunterschiede und eine
+Zielendpunkt, ein anderer exakter Statuscode oder ein anderer Statusausgang. Die
+Statusfamilie (2xx/4xx/5xx) wird zusätzlich angezeigt, entscheidet aber nicht
+über Gleichheit. Reine Timingunterschiede und eine
 andere Reihenfolge nebenläufiger Ereignisse sind kein Unterschied, solange die
 kausale Verknüpfung erhalten bleibt. Nicht korrelierbare Ereignisse werden
-separat gelistet und weder als „gleich" noch als „anders" gezählt.
+separat gelistet und weder als „gleich“ noch als „anders“ gezählt.
 
 Feldwerte, die nicht zur freigegebenen State-Aufzeichnung gehören, tragen
 nicht zum Vergleich bei. Eine Erweiterung des Vergleichs auf zusätzliche
@@ -73,6 +91,9 @@ Felder benötigt eine begründete Änderung der Freigabeliste.
 
 - Deterministischer Replay eines aufgezeichneten Klicks aus Startzustand und
   Deltas.
+- Eine Aufzeichnung mit fehlendem Delta wird ab der Lücke als unbekannt markiert
+  oder bis zum nächsten vollständigen Checkpoint pausiert; veralteter Zustand
+  wird im Replay nicht weiter als aktuell angezeigt.
 - Tests für fehlende Ereignisse, parallele Klicks, späte Spans, geänderte
   Zuordnung, Cache kalt/warm.
 - Vor-/Zurückschalten löst keine Anwendungsrequests aus.

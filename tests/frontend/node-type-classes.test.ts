@@ -36,4 +36,19 @@ describe("nodeTypeClasses", () => {
     const fallback = nodeTypeClasses("mystery-type");
     expect(fallback).toContain("border-gray-400");
   });
+
+  it("gives every mapped type both a bg-*-100 and a border-*-500 utility", () => {
+    // Guard against a regression that silently drops one half of the pair
+    // (e.g. keeps border color but loses the bg fill).
+    for (const [type, classes] of Object.entries(NODE_TYPE_CLASSES)) {
+      expect(classes, `type: ${type}`).toMatch(/\bbg-\w+-100\b/);
+      expect(classes, `type: ${type}`).toMatch(/\bborder-\w+-500\b/);
+    }
+  });
+
+  it("leaves the fallback bg-less so Vue Flow's default white shows through", () => {
+    // If someone adds `bg-white` (or any bg-*) to the fallback, unknown-type
+    // nodes stop looking distinct from Vue Flow's default. Explicitly guard.
+    expect(nodeTypeClasses("mystery-type")).not.toMatch(/\bbg-/);
+  });
 });

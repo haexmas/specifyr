@@ -106,12 +106,22 @@ Veränderliche Kontextdaten werden davon getrennt und kommutativ angereichert:
 identische Callstack-Frames, Variablenwerte und pausierte Quellkontextfelder sind
 idempotent; fehlende Felder dürfen ergänzt werden. Bei Callstacks gewinnt nur
 eine strikt vollständigere, zum bisherigen Stack präfixkompatible Darstellung.
-Variablen und Quellkontext werden als kanonische Feldmengen vereinigt. Nicht
-präfixkompatible Stacks oder widersprüchliche Werte werden nicht überschrieben;
-das betroffene Feld wird als „Kontextkonflikt/unbekannt“ markiert und eine
-Diagnose gespeichert. Damit ist der angezeigte Inspector-Zustand unabhängig von
-der Zustellreihenfolge. Der Konflikt betrifft nicht die unveränderlichen Daten
-des bestehenden Stopps.
+Variablen und Quellkontext werden als kanonische Feldmengen vereinigt. Die
+Frame-Identität ist `(threadOrTaskId, frameIndex, normalisierte Funktion,
+SourceRef)`; die Scope-Identität ergänzt `(scopeKind, scopeOrdinal, scopeName)`.
+Ein Variablenpfad besteht aus dieser Scope-Identität plus kanonisch escaped
+Property-Segmenten. Ein Quellkontextfeld wird durch `(contextNamespace,
+kanonischer Feldpfad)` identifiziert. Gleichnamige Variablen in verschiedenen
+Frames oder Scopes bleiben dadurch getrennt.
+
+`fehlend` bedeutet: keine Beobachtung, darf später ergänzt werden und ist kein
+Wert. `null` ist ein tatsächlich beobachteter Wert. `unbekannt` bedeutet
+instrumentierungsbedingt nicht verfügbar oder redigiert; ein späterer konkreter
+Wert darf es als Anreicherung ersetzen. Zwei unterschiedliche konkrete Werte
+für dieselbe Identität werden nicht überschrieben, sondern als
+„Kontextkonflikt/unbekannt“ markiert und diagnostiziert. Damit ist der
+angezeigte Inspector-Zustand unabhängig von der Zustellreihenfolge. Der Konflikt
+betrifft nicht die unveränderlichen Daten des bestehenden Stopps.
 
 Der Adapter führt pro `DebugSession` eine strikt eindeutige, monotone
 `stopSequence`. Der Cursor ist der höchste lückenlose bestätigte Präfix, initial
@@ -126,11 +136,18 @@ Zustand.
 
 `nextStopSequence` und der zuletzt bestätigte lückenlose Cursor werden dauerhaft
 im Zustand der `DebugSession` gespeichert. Die Vergabe des nächsten Werts ist
-atomar; ein Adapter-Neustart lädt diesen Zustand und setzt bei der nächsten
-Meldung hinter dem gespeicherten Wert fort. Eine Session darf nicht fortgeführt
+Teil einer gemeinsamen atomaren Transaktion mit dem zugehörigen dauerhaft
+gespeicherten `DebuggerStopRecord` im Zustand `pending` (alternativ einem
+expliziten `gap`-Marker): Sequenzwert, Datensatz und inkrementierter
+`nextStopSequence` werden gemeinsam geschrieben oder gemeinsam verworfen. Ein
+Adapter-Neustart lädt diesen Zustand und liefert jeden `pending`-Datensatz ab dem
+Cursor erneut, bevor eine spätere Sequenz bestätigt wird. Eine Session darf nicht fortgeführt
 werden, wenn der persistierte Sequenzzustand nicht geladen oder nicht atomar
 aktualisiert werden kann; stattdessen erscheint eine Diagnose. So werden bereits
-bestätigte Werte weder wiederverwendet noch wird der Cursor unterschritten.
+bestätigte Werte weder wiederverwendet noch wird der Cursor unterschritten. Ein
+Absturz nach dieser Transaktion, aber vor der Live-Zustellung, hinterlässt den
+Stopp zur erneuten Zustellung; ein Absturz innerhalb der Transaktion hinterlässt
+weder einen inkrementierten Zähler noch einen verwaisten Datensatz.
 
 Läuft die konfigurierte Zustell- oder Lookup-Frist ab, bleibt der Zustand
 „Stop ausstehend“ mit einer sichtbaren Timeout-/Kanalverlustdiagnose bestehen;
@@ -193,11 +210,17 @@ Instrumentierung wechseln.
   zweier gleicher, anreichernder Kontextdaten. Widersprüchliche Callstacks,
   Variablen oder Quellkontextfelder werden als unbekannt/Konflikt markiert und
   überschreiben den bestehenden Stopp nicht.
+- Ein Scope-Test zeigt gleichnamige Variablen in zwei unterschiedlichen Frames
+  oder Scopes getrennt; `fehlend`, `null` und `unbekannt` folgen den definierten
+  Ergänzungs- und Konfliktregeln.
 - Ein Zustelltest mit 12 vor 11 bestätigt erst den lückenlosen Präfix bis 12,
   nachdem 11 geprüft wurde; 12 wird bis dahin gepuffert oder erneut geliefert.
 - Ein Neustart-/Reconnect-Test lädt `nextStopSequence` und den bestätigten Cursor
   aus der `DebugSession`, vergibt danach keinen alten Wert erneut und setzt keine
   Sequenzlücke hinter dem Cursor fort.
+- Ein Absturztest zwischen atomarer Sequenz-/Stop-Speicherung und Live-Zustellung
+  stellt den `pending`-Stopp nach Neustart erneut zu, bevor die nächste Sequenz
+  verwendet oder der Cursor weitergeschoben wird.
 - Der Fall liefert verständliche Diagnosen bei Quell-/Build-Mismatch,
   fehlender Quellzuordnung und konkurrierendem Request.
 - Der Ablauf funktioniert ohne SOLL-/PLAN-Modell.

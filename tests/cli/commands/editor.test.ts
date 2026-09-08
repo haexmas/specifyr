@@ -28,6 +28,19 @@ describe("editorChildEnv", () => {
     expect(env.FOO).toBe("bar");
   });
 
+  it("options.repoPath wins over an inherited SPECIFYR_REPO_PATH in the parent env", () => {
+    const env = editorChildEnv(
+      { SPECIFYR_REPO_PATH: "/inherited" },
+      { repoPath: "/chosen", port: 3939 },
+    );
+    expect(env.SPECIFYR_REPO_PATH).toBe("/chosen");
+  });
+
+  it("pins the server to loopback via HOST", () => {
+    const env = editorChildEnv({}, { repoPath: "/tmp/repo", port: 3939 });
+    expect(env.HOST).toBe("127.0.0.1");
+  });
+
   it("strips vitest env vars so consola prints normally in the child", () => {
     const env = editorChildEnv(
       {

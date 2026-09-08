@@ -56,6 +56,9 @@ export function editorChildEnv(
   return {
     ...clean,
     ...(repoPath !== undefined ? { SPECIFYR_REPO_PATH: repoPath } : {}),
+    // Bind Nitro to loopback so the browse endpoint (which lists any directory
+    // the process can read) is not reachable from other hosts on the LAN.
+    HOST: "127.0.0.1",
     PORT: String(port),
     NO_COLOR: parent.NO_COLOR ?? "1",
   };

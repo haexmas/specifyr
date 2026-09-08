@@ -34,15 +34,14 @@ const {
   status,
   execute: fetchModel,
 } = useFetch<Model>(endpoint, {
-  watch: [view, repoPath],
   // Skip fetching until the composable has hydrated and a repoPath is chosen;
-  // the picker shows in place of the data views while inactive.
+  // the picker shows in place of the data views while inactive. Refetch on
+  // view / repoPath / isReady changes is driven by the explicit watch below so
+  // useFetch's own `watch` option is intentionally omitted (else it double-fires).
   immediate: false,
 });
-// Kick off the first fetch as soon as we have a hydrated repoPath. Subsequent
-// changes to `view` / `repoPath` refetch via the `watch` option above.
 watch(
-  [isReady, repoPath],
+  [isReady, repoPath, view],
   () => {
     if (isReady.value && repoPath.value) void fetchModel();
   },
@@ -170,8 +169,13 @@ const {
   error: browseError,
   execute: fetchBrowse,
 } = useFetch<BrowseResult>(browseEndpoint, {
-  watch: [browsePath],
+  // Driven by the explicit watches below (visibility + browsePath) so the
+  // fetch fires once per user action instead of racing with useFetch's own
+  // internal watcher on `browseEndpoint`.
   immediate: false,
+});
+watch(browsePath, () => {
+  if (showPicker.value) void fetchBrowse();
 });
 // Fetch a fresh listing whenever the picker becomes visible.
 watch(
@@ -235,7 +239,7 @@ function shortenPath(value: string, max = 48): string {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col font-sans" @keydown.esc.stop="onPickerEsc">
+  <div class="flex h-screen flex-col font-sans">
     <header
       class="flex flex-wrap items-center gap-2 border-b border-zinc-300 bg-zinc-100 px-4 py-2 text-sm"
     >
@@ -409,6 +413,7 @@ function shortenPath(value: string, max = 48): string {
       role="dialog"
       aria-modal="true"
       aria-labelledby="repo-picker-title"
+      @keydown.esc="onPickerEsc"
     >
       <div class="w-[560px] max-w-full rounded-lg bg-white p-4 shadow-xl">
         <div class="mb-3 flex items-center gap-2">

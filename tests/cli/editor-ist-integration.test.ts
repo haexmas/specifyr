@@ -139,6 +139,20 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       return content.includes("Imports (") && content.includes("Imported by (");
     });
     expect(anyMentionsNeighbors).toBe(true);
+
+    // Search sanity check: the header input placeholder and Vue Flow's
+    // camera-fit call must both survive into the JS bundle. A regression
+    // that dropped the search input or the fitView jump would silently
+    // ship an editor that can only be traversed by clicking — this
+    // catches that.
+    const anyMentionsSearch = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return (
+        content.includes("Search nodes") &&
+        (content.includes("fitView") || content.includes("fit-view"))
+      );
+    });
+    expect(anyMentionsSearch).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

@@ -60,6 +60,7 @@ export function extractSourceFromTree(tree: Tree, relativePath: string): Node[] 
       id: istNodeId(relativePath, qualifiedName),
       type: emittedType,
       name,
+      path: relativePath,
       classes: [],
     });
   }

@@ -174,17 +174,37 @@ const {
   // internal watcher on `browseEndpoint`.
   immediate: false,
 });
-watch(browsePath, () => {
-  if (showPicker.value) void fetchBrowse();
-});
-// Fetch a fresh listing whenever the picker becomes visible.
+const pickerDialog = ref<HTMLElement | null>(null);
+// Fetch once whenever the picker becomes visible or its browse path changes.
 watch(
-  showPicker,
-  (visible) => {
+  [showPicker, browsePath],
+  ([visible]) => {
     if (visible) void fetchBrowse();
   },
   { immediate: true },
 );
+watch(
+  showPicker,
+  (visible) => {
+    if (visible) void nextTick(() => pickerDialog.value?.focus());
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  watch(
+    showPicker,
+    (visible) => {
+      if (visible) document.addEventListener("keydown", onPickerEsc);
+      else document.removeEventListener("keydown", onPickerEsc);
+    },
+    { immediate: true },
+  );
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onPickerEsc);
+});
 
 function joinPath(parent: string, name: string): string {
   return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
@@ -225,7 +245,8 @@ function cancelPicker(): void {
   pickerOpen.value = false;
 }
 
-function onPickerEsc(): void {
+function onPickerEsc(event?: KeyboardEvent): void {
+  if (event?.key && event.key !== "Escape") return;
   cancelPicker();
 }
 
@@ -413,6 +434,8 @@ function shortenPath(value: string, max = 48): string {
       role="dialog"
       aria-modal="true"
       aria-labelledby="repo-picker-title"
+      ref="pickerDialog"
+      tabindex="-1"
       @keydown.esc="onPickerEsc"
     >
       <div class="w-[560px] max-w-full rounded-lg bg-white p-4 shadow-xl">

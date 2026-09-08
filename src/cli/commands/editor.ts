@@ -269,7 +269,9 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
 
   const url = `http://127.0.0.1:${startedPort}`;
 
-  process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
+  process.stdout.write(
+    `Editor running at ${url}${repoPath !== undefined ? ` (SOLL: ${repoPath})` : ""}\n`,
+  );
 
   if (openBrowser) {
     try {

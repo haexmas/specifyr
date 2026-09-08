@@ -21,23 +21,27 @@ const AUTOMATIC_START_ATTEMPTS = 3;
 const EDITOR_READY_TIMEOUT_MS = 15000;
 
 export interface EditorOptions {
-  repoPath: string;
+  /** Optional default repo path. When omitted, the browser picker opens on landing. */
+  repoPath: string | undefined;
   port?: number;
   openBrowser?: boolean;
 }
 
 /**
  * Builds the environment variables for the editor child process, stripping
- * test-related variables and setting SPECIFYR_REPO_PATH, PORT, and NO_COLOR.
+ * test-related variables and setting SPECIFYR_REPO_PATH (when provided),
+ * PORT, and NO_COLOR.
  *
  * @param parent - The parent process environment to inherit from.
- * @param options.repoPath - Path to the repository containing .specifyr/soll/.
+ * @param options.repoPath - Path to the repository, or undefined to leave the
+ *   frontend picker in charge (SPECIFYR_REPO_PATH is not set in that case).
  * @param options.port - Port number for the editor server.
- * @returns Clean environment with SPECIFYR_REPO_PATH, PORT, and NO_COLOR set.
+ * @returns Clean environment with PORT/NO_COLOR set and SPECIFYR_REPO_PATH
+ *   set only when `repoPath` was provided.
  */
 export function editorChildEnv(
   parent: NodeJS.ProcessEnv,
-  { repoPath, port }: { repoPath: string; port: number },
+  { repoPath, port }: { repoPath: string | undefined; port: number },
 ): NodeJS.ProcessEnv {
   const {
     VITEST: _v,
@@ -45,12 +49,13 @@ export function editorChildEnv(
     VITEST_WORKER_ID: _vw,
     NODE_ENV: _ne,
     TEST: _t,
+    SPECIFYR_REPO_PATH: _sp,
     ...clean
   } = parent;
-  void [_v, _vp, _vw, _ne, _t];
+  void [_v, _vp, _vw, _ne, _t, _sp];
   return {
     ...clean,
-    SPECIFYR_REPO_PATH: repoPath,
+    ...(repoPath !== undefined ? { SPECIFYR_REPO_PATH: repoPath } : {}),
     PORT: String(port),
     NO_COLOR: parent.NO_COLOR ?? "1",
   };
@@ -151,7 +156,7 @@ interface StartedEditor {
 }
 
 /** Spawn the frontend and attach the signal/shutdown lifecycle handlers. */
-function spawnEditor(repoPath: string, port: number): StartedEditor {
+function spawnEditor(repoPath: string | undefined, port: number): StartedEditor {
   const child = spawn(process.execPath, [FRONTEND_SERVER], {
     env: editorChildEnv(process.env, { repoPath, port }),
     stdio: ["ignore", "inherit", "inherit"],
@@ -182,7 +187,7 @@ function spawnEditor(repoPath: string, port: number): StartedEditor {
 
 /** Spawn an editor and wait for its readiness contract. */
 async function startEditor(
-  repoPath: string,
+  repoPath: string | undefined,
   port: number,
   waitForReady: (child: ChildProcess, url: string) => Promise<void>,
 ): Promise<StartedEditor> {
@@ -222,7 +227,9 @@ export async function runEditor(options: EditorOptions): Promise<ChildProcess> {
     );
     const url = `http://127.0.0.1:${port}`;
 
-    process.stdout.write(`Editor running at ${url} (SOLL: ${repoPath})\n`);
+    process.stdout.write(
+      `Editor running at ${url}${repoPath !== undefined ? ` (SOLL: ${repoPath})` : ""}\n`,
+    );
 
     if (openBrowser) {
       try {

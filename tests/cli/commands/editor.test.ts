@@ -18,6 +18,16 @@ describe("editorChildEnv", () => {
     expect(env.FOO).toBe("bar");
   });
 
+  it("omits SPECIFYR_REPO_PATH when repoPath is undefined", () => {
+    const env = editorChildEnv(
+      { FOO: "bar", SPECIFYR_REPO_PATH: "/leftover" },
+      { repoPath: undefined, port: 3939 },
+    );
+    expect("SPECIFYR_REPO_PATH" in env).toBe(false);
+    expect(env.PORT).toBe("3939");
+    expect(env.FOO).toBe("bar");
+  });
+
   it("strips vitest env vars so consola prints normally in the child", () => {
     const env = editorChildEnv(
       {

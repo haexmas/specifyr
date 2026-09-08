@@ -8,6 +8,12 @@ import {
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import type { Model, Node } from "specifyr";
+import {
+  buildHierarchy,
+  findFilePath,
+  type FilePathResult,
+  type HierarchyNode,
+} from "../composables/build-hierarchy.js";
 import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
@@ -59,6 +65,10 @@ const { positions, pending: layoutPending } = useElkLayout({
   edges: computed(() => layoutInput.value.edges),
 });
 
+const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
+const expandedFolderIds = reactive(new Set<string>());
+watch([repoPath, view], () => expandedFolderIds.clear());
+
 const selectedNodeId = ref<string | undefined>(undefined);
 
 const selectedNode = computed(() => {
@@ -106,6 +116,20 @@ function onSearchSubmit(): void {
   if (!first) return;
   selectedNodeId.value = first.id;
   void fitView({ nodes: [first.id], duration: 400, padding: 0.3 });
+}
+
+const selectionFilePath = computed<FilePathResult | undefined>(() => {
+  if (!selectedNodeId.value) return undefined;
+  return findFilePath(hierarchy.value, selectedNodeId.value);
+});
+watch(selectionFilePath, (result) => {
+  if (!result) return;
+  for (const folderId of result.folderIds) expandedFolderIds.add(folderId);
+});
+
+function onExplorerSelect(nodeId: string | undefined): void {
+  selectedNodeId.value = nodeId;
+  if (nodeId) void fitView({ nodes: [nodeId], duration: 400, padding: 0.3 });
 }
 
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
@@ -364,6 +388,18 @@ function shortenPath(value: string, max = 48): string {
       {{ view.toUpperCase() }} is empty — no nodes to display.
     </div>
     <div v-else class="flex min-h-0 flex-1">
+      <aside
+        class="w-72 shrink-0 overflow-y-auto border-r border-zinc-300 bg-zinc-50 px-3 py-3 text-sm"
+        aria-label="Explorer"
+      >
+        <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Explorer</h2>
+        <ExplorerTree
+          :entries="hierarchy"
+          :highlighted-file-id="selectionFilePath?.fileId"
+          :expanded-ids="expandedFolderIds"
+          @select="onExplorerSelect"
+        />
+      </aside>
       <div class="min-h-0 flex-1">
         <VueFlow
           :nodes="flowNodes"

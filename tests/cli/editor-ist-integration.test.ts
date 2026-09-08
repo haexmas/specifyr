@@ -129,6 +129,16 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       );
     });
     expect(anyMentionsSelection).toBe(true);
+
+    // Neighbors sanity check: the sidebar's Imports / Imported by sections
+    // must survive into the JS bundle. A regression that dropped the
+    // neighbor lists would silently ship a graph that can no longer be
+    // traversed from a selection — this catches that.
+    const anyMentionsNeighbors = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("Imports (") && content.includes("Imported by (");
+    });
+    expect(anyMentionsNeighbors).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

@@ -189,6 +189,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
               <button
                 type="button"
                 class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                :title="n.name"
                 @click="selectedNodeId = n.id"
               >{{ n.name }}</button>
             </li>
@@ -204,6 +205,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
               <button
                 type="button"
                 class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                :title="n.name"
                 @click="selectedNodeId = n.id"
               >{{ n.name }}</button>
             </li>

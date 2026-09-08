@@ -84,15 +84,21 @@ Two file-level cases:
   working, since imports edges reference module ids).
 - **SOLL/PLAN nodes with a `path` but no dedicated "file" node type** — the
   file-level box is synthesized the same way folders are: a virtual
-  container with no backing node. Clicking it expands/collapses only; it
-  never sets `selectedNodeId` (there's no node to select).
+  container with no backing node. Clicking it expands/collapses only and
+  explicitly clears `selectedNodeId` (there's no node to select), so a
+  previous real-node selection cannot remain highlighted while navigating a
+  virtual file.
 
 Nodes with no `path` at all (neither SOLL nor IST) land in an implicit
-"(no folder)" bucket at the root instead of disappearing.
+"(no folder)" bucket at the root instead of disappearing. That bucket always
+contains a synthetic "(no file)" child, keeping the promised
+`Folder → File → Symbol` shape; pathless symbols are children of that virtual
+file. The virtual file has no backing node, so clicking it also clears
+`selectedNodeId` and only toggles its expansion state.
 
 ## Layout: three-pane, one shared selection
 
-```
+```text
 ┌─────────────┬──────────────────────────┬─────────────┐
 │  Explorer   │         Canvas           │   Details   │
 │  (new, tree)│ (Folder→File→Symbol,     │  (existing  │
@@ -117,10 +123,12 @@ speccing it up front.
 
 **`selectedNodeId` becomes the single shared truth**, settable from either
 Explorer or Canvas:
-- Explorer click on a file → `selectedNodeId` = that file (if IST module) or
-  nothing (if virtual SOLL/PLAN file box — expand only). Canvas opens the
-  path down to that file's wrapper box and fits the camera; the file's own
-  box stays collapsed (shows a "12 symbols" badge) unless clicked again.
+- Explorer click on a file → `selectedNodeId` = that file (if IST module), or
+  `selectedNodeId` = `undefined` (if virtual SOLL/PLAN file box — expand
+  only). Canvas opens the path down to that file's wrapper box and fits the
+  camera; the file's own box stays collapsed (shows a "12 symbols" badge)
+  unless clicked again. The virtual-file transition from a real selection is
+  covered by an interaction test and leaves the Details sidebar empty.
 - Canvas click on a module → Explorer highlights that exact file.
 - Canvas click on a symbol → Explorer highlights the file **containing** that
   symbol (resolved via the symbol's `path`), not a tree row for the symbol
@@ -166,15 +174,26 @@ already-visible boxes elsewhere on the canvas — undermining the exact trust
 this redesign is meant to build. Chosen approach:
 
 - **Top-level wrapper positions are fixed and simple** (e.g., an alphabetical
-  grid), computed independently of ELK. This position only changes when the
-  underlying set of top-level folders itself changes (repo switch, new file
-  added) — never from expand/collapse.
+  grid), computed independently of ELK. Each grid cell reserves a stable
+  rectangle with a gap to its siblings and the canvas edges. Expanding a
+  wrapper grows it from its collapsed badge into that reserved rectangle;
+  sibling wrappers keep their anchors and never overlap it. If the scoped
+  layout needs more room than the reserved rectangle, the wrapper keeps the
+  same outer bounds and its content area scrolls locally. The canvas extent
+  includes the complete grid, so overflow adds canvas scrolling rather than
+  moving or clipping a top-level wrapper. The grid position only changes when
+  the underlying set of top-level folders itself changes (repo switch, new
+  file added) — never from expand/collapse.
 - **Inside an expanded container, ELK runs scoped to just that container's
   children** — same `layered` algorithm as today, just invoked per expanded
   container instead of once globally. `useElkLayout`'s existing `inputKey`
-  pattern applies per-container: expanding folder A never touches folder B's
-  already-computed internal arrangement, because each container gets its own
-  `inputKey` over just its own children.
+  pattern applies per-container: the key includes a sorted recursive
+  signature of every descendant's stable id, measured width/height,
+  parentage, and expanded/collapsed state, plus the local edge endpoints.
+  Thus a nested expansion invalidates every affected ancestor key even when
+  node ids and edge endpoints are unchanged. Expanding folder A never touches
+  folder B's already-computed internal arrangement, because each container
+  still gets its own key over just its own subtree.
 
 This sidesteps needing ELK's native compound/hierarchical layout mode
 entirely — architecturally it's the same ELK call as today, scoped smaller
@@ -194,16 +213,26 @@ moment the graph defaults to collapsed.
 
 Pure, TDD-able logic (unit tests, following the existing project pattern):
 - `buildHierarchy(nodes)` — empty list, root-level file with no folder, deep
-  nesting, IST module-anchored files vs. SOLL/PLAN virtual files.
+  nesting, IST module-anchored files vs. SOLL/PLAN virtual files, and a mixed
+  pathful/pathless input asserting that pathless symbols appear under the
+  `(no folder) → (no file)` virtual parents.
 - `resolveVisibleEndpoint` / edge aggregation — dedup, self-loop removal,
   partial collapse states.
-- Top-level grid placement — deterministic given a folder set.
+- Top-level grid placement — deterministic given a folder set, with adjacent
+  folders expanding independently without overlapping their reserved cells or
+  the canvas edges.
+- Per-container `useElkLayout` input keys — expanding a nested child with the
+  same node ids and edge endpoints changes the ancestor key and recomputes
+  the ancestor positions.
 
 UI wiring (tree/canvas clicks, sync, expand/collapse): E2E bundle-content
 guards plus manual smoke test, matching the pattern used for every prior
 slice in this project — component-level Vue Flow interaction tests have
 proven brittle and were skipped in Selection/Neighbors/Search/Repo Picker
-for the same reason.
+for the same reason. The tree interaction coverage must include selecting a
+real IST module, clicking a virtual SOLL/PLAN file, and asserting that
+`selectedNodeId` is cleared and the Details sidebar no longer shows the old
+node.
 
 ## Suggested slicing for implementation
 

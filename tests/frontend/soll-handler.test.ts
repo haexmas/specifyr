@@ -36,6 +36,17 @@ describe("loadSollForRequest", () => {
     expect(model.edges).toEqual([]);
   });
 
+  it("returns an empty model when SOLL was never initialized", async () => {
+    // repoPath exists (mkdtemp) but has no .specifyr/ subtree — a fresh
+    // repo the user opens with `specifyr editor` before running `init`.
+    process.env.SPECIFYR_REPO_PATH = repoPath;
+
+    const model = await loadSollForRequest();
+    expect(model.meta.source).toBe("soll");
+    expect(model.nodes).toEqual([]);
+    expect(model.edges).toEqual([]);
+  });
+
   it("returns a populated model with nodes and edges", async () => {
     await saveSoll(repoPath, {
       meta: { source: "soll" },

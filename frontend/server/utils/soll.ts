@@ -17,5 +17,16 @@ export async function loadSollForRequest(): Promise<Model> {
         "if you are running the frontend directly, export SPECIFYR_REPO_PATH=<path>.",
     );
   }
-  return await loadSoll(repoPath);
+  try {
+    return await loadSoll(repoPath);
+  } catch (cause) {
+    // A repo the user opens before running `specifyr init` has no .specifyr/
+    // tree — treat as an empty model so the editor lands on the empty-state UI
+    // instead of a hard error. Non-ENOENT failures (corrupt storage, permission
+    // denied) still bubble up.
+    if ((cause as NodeJS.ErrnoException).code === "ENOENT") {
+      return { meta: { source: "soll" }, nodes: [], edges: [] };
+    }
+    throw cause;
+  }
 }

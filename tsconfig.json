@@ -16,7 +16,10 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "vue": ["./frontend/node_modules/vue"]
+    }
   },
   "include": [
     "src",

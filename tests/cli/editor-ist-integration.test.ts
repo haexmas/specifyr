@@ -115,6 +115,20 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       return content.includes("bg-blue-100") || content.includes("bg-purple-100");
     });
     expect(anyMentionsTailwindColor).toBe(true);
+
+    // Selection sanity check: the details-sidebar copy plus Vue Flow's
+    // selection wiring must both survive into the JS bundle. A regression
+    // that dropped the sidebar or reverted elements-selectable would silently
+    // ship an editor that no longer reacts to clicks — this catches that.
+    const anyMentionsSelection = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return (
+        content.includes("Nothing selected") &&
+        (content.includes("elementsSelectable") || content.includes("elements-selectable")) &&
+        content.includes("onNodeClick")
+      );
+    });
+    expect(anyMentionsSelection).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

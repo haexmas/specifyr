@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { VueFlow, type Node as FlowNode, type Edge as FlowEdge } from "@vue-flow/core";
+import {
+  VueFlow,
+  type Node as FlowNode,
+  type Edge as FlowEdge,
+  type NodeMouseEvent,
+} from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import type { Model } from "specifyr";
+import { formatNodeDetails } from "../composables/format-node-details.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
 
 import "@vue-flow/core/dist/style.css";
@@ -21,6 +27,25 @@ const { positions, pending: layoutPending } = useElkLayout({
   edges: computed(() => layoutInput.value.edges),
 });
 
+const selectedNodeId = ref<string | undefined>(undefined);
+
+const selectedNode = computed(() => {
+  if (!selectedNodeId.value || !data.value?.nodes) return undefined;
+  return data.value.nodes.find((n) => n.id === selectedNodeId.value);
+});
+
+const selectedNodeDetails = computed(() =>
+  selectedNode.value ? formatNodeDetails(selectedNode.value) : [],
+);
+
+function onNodeClick({ node }: NodeMouseEvent): void {
+  selectedNodeId.value = node.id;
+}
+
+function onPaneClick(): void {
+  selectedNodeId.value = undefined;
+}
+
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
@@ -30,6 +55,7 @@ const flowNodes = computed<FlowNode[]>(() => {
     position: positions.value.get(node.id) ?? { x: 0, y: 0 },
     data: { label: `${node.name}\n(${node.type})` },
     class: `soll-node ${nodeTypeClasses(node.type)}`,
+    selected: node.id === selectedNodeId.value,
   }));
 });
 
@@ -99,16 +125,37 @@ const flowEdges = computed<FlowEdge[]>(() => {
     >
       {{ view.toUpperCase() }} is empty — no nodes to display.
     </div>
-    <div v-else class="min-h-0 flex-1">
-      <VueFlow
-        :nodes="flowNodes"
-        :edges="flowEdges"
-        :nodes-draggable="false"
-        :nodes-connectable="false"
-        :elements-selectable="false"
+    <div v-else class="flex min-h-0 flex-1">
+      <div class="min-h-0 flex-1">
+        <VueFlow
+          :nodes="flowNodes"
+          :edges="flowEdges"
+          :nodes-draggable="false"
+          :nodes-connectable="false"
+          :elements-selectable="true"
+          @node-click="onNodeClick"
+          @pane-click="onPaneClick"
+        >
+          <Background />
+        </VueFlow>
+      </div>
+      <aside
+        class="w-80 shrink-0 overflow-y-auto border-l border-zinc-300 bg-zinc-50 px-4 py-3 text-sm"
+        aria-label="Node details"
       >
-        <Background />
-      </VueFlow>
+        <div v-if="!selectedNode" class="text-zinc-500">Nothing selected.</div>
+        <dl
+          v-else
+          class="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1"
+        >
+          <template v-for="row in selectedNodeDetails" :key="row.label">
+            <dt class="font-medium text-zinc-500">{{ row.label }}</dt>
+            <dd class="min-w-0 break-words font-mono text-xs text-zinc-800">
+              {{ row.value }}
+            </dd>
+          </template>
+        </dl>
+      </aside>
     </div>
   </div>
 </template>

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Enable Vue Flow node selection in the editor and show the selected node's details in a right-side sidebar. First derivative from the [roadmap 001](roadmap/001-editor-perspectives-and-state-comparison.md) product plan — the "Auswahl-Primitive" every later view depends on.
+**Goal:** Enable Vue Flow node selection in the editor and show the selected node's details in a right-side sidebar. First derivative from the [roadmap 001](../../plans/001-editor-perspectives-and-state-comparison.md) product plan — the "Auswahl-Primitive" every later view depends on.
 
 **Architecture:** The product-vision docs already live at repo-root `plans/` (landed via PR #12 while this slice was being planned). Add a small pure `formatNodeDetails(node)` helper in `frontend/composables/` that turns any `Node` (SOLL or IST shape) into an ordered list of `{ label, value }` display rows — unit-testable without Vue. Modify `frontend/pages/index.vue`: (1) `elements-selectable: true` on `<VueFlow>`, (2) `@node-click` / `@pane-click` handlers maintaining a `selectedNodeId: ref<string | undefined>`, (3) split the previous single-column canvas area into a two-column flex (Vue Flow left, 320px details sidebar right), (4) sidebar renders the details rows or an "Nothing selected" empty state. Layout stability contract: since `useElkLayout`'s `inputKey` only hashes `nodes` + `edges` (never `selectedNodeId`), clicking a node cannot trigger a re-layout — verify empirically.
 

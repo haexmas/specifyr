@@ -153,6 +153,16 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       );
     });
     expect(anyMentionsSearch).toBe(true);
+
+    // Repo picker sanity check: the modal copy and the browse endpoint URL
+    // must both survive into the JS bundle. A regression that dropped the
+    // picker or the /api/browse call would silently ship an editor with no
+    // way to change the repository from the browser — this catches that.
+    const anyMentionsPicker = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("Select this folder") && content.includes("/api/browse");
+    });
+    expect(anyMentionsPicker).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

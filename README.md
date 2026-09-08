@@ -71,7 +71,8 @@ Slice Tailwind: Tailwind CSS as editor styling primitive + per-node-type colors 
 Slice Selection: click a node to reveal a right-side details sidebar; the graph layout stays put. First slice derived from [`plans/001-editor-perspectives-and-state-comparison.md`](plans/001-editor-perspectives-and-state-comparison.md). ✅
 Slice Neighbors: selecting a node highlights its direct imports/importers and lists them as clickable rows in the sidebar — traversal from any starting point, no re-layout. ✅
 Slice Search: header input dims non-matching nodes with opacity-30 based on name or path; Enter jumps and fits the camera to the first match without re-layout. ✅
-Slice Repo Picker (current): open the editor with or without a path — an in-browser folder picker lets you pick and swap repositories; selection persists per browser via localStorage. ✅
+Slice Repo Picker: open the editor with or without a path — an in-browser folder picker lets you pick and swap repositories; selection persists per browser via localStorage. ✅
+Slice Hierarchy Data (current): IST symbol nodes carry a path back to their file; new buildHierarchy() composable groups any node list into Folder → File → Symbol, ready for the Explorer tree + nested canvas redesign in upcoming slices. No visible editor change yet. ✅
 Slice C+ (planned): shadcn-vue / Pinia, extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
 
 ## License

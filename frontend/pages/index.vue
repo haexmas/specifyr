@@ -8,6 +8,7 @@ import {
 import { Background } from "@vue-flow/background";
 import type { Model } from "specifyr";
 import { formatNodeDetails } from "../composables/format-node-details.js";
+import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
 
 import "@vue-flow/core/dist/style.css";
@@ -38,6 +39,19 @@ const selectedNodeDetails = computed(() =>
   selectedNode.value ? formatNodeDetails(selectedNode.value) : [],
 );
 
+const neighbors = computed<Neighbors>(() => {
+  if (!selectedNode.value || !data.value) return { imports: [], importedBy: [] };
+  return neighborsOf(selectedNode.value.id, data.value.nodes, data.value.edges);
+});
+
+const neighborIds = computed<Set<string>>(() => {
+  const s = new Set<string>();
+  for (const n of neighbors.value.imports) s.add(n.id);
+  for (const n of neighbors.value.importedBy) s.add(n.id);
+  if (selectedNodeId.value) s.add(selectedNodeId.value);
+  return s;
+});
+
 function onNodeClick({ node }: NodeMouseEvent): void {
   selectedNodeId.value = node.id;
 }
@@ -49,26 +63,37 @@ function onPaneClick(): void {
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
-  return data.value.nodes.map((node) => ({
-    id: node.id,
-    type: "default",
-    position: positions.value.get(node.id) ?? { x: 0, y: 0 },
-    data: { label: `${node.name}\n(${node.type})` },
-    class: `soll-node ${nodeTypeClasses(node.type)}`,
-    selected: node.id === selectedNodeId.value,
-  }));
+  const hasSelection = Boolean(selectedNodeId.value);
+  return data.value.nodes.map((node) => {
+    const dim = hasSelection && !neighborIds.value.has(node.id);
+    const classes = ["soll-node", nodeTypeClasses(node.type)];
+    if (dim) classes.push("opacity-30");
+    return {
+      id: node.id,
+      type: "default",
+      position: positions.value.get(node.id) ?? { x: 0, y: 0 },
+      data: { label: `${node.name}\n(${node.type})` },
+      class: classes.join(" "),
+      selected: node.id === selectedNodeId.value,
+    };
+  });
 });
 
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
-  return data.value.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.from,
-    target: edge.to,
-    label: edge.type,
-    animated: false,
-  }));
+  const selectedId = selectedNodeId.value;
+  return data.value.edges.map((edge) => {
+    const dim = Boolean(selectedId) && edge.from !== selectedId && edge.to !== selectedId;
+    return {
+      id: edge.id,
+      source: edge.from,
+      target: edge.to,
+      label: edge.type,
+      animated: false,
+      class: dim ? "opacity-20" : "",
+    };
+  });
 });
 </script>
 
@@ -155,6 +180,36 @@ const flowEdges = computed<FlowEdge[]>(() => {
             </dd>
           </template>
         </dl>
+        <section v-if="selectedNode" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Imports ({{ neighbors.imports.length }})
+          </h3>
+          <ul v-if="neighbors.imports.length" class="space-y-0.5">
+            <li v-for="n in neighbors.imports" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-zinc-500">None</p>
+        </section>
+        <section v-if="selectedNode" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Imported by ({{ neighbors.importedBy.length }})
+          </h3>
+          <ul v-if="neighbors.importedBy.length" class="space-y-0.5">
+            <li v-for="n in neighbors.importedBy" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-zinc-500">None</p>
+        </section>
       </aside>
     </div>
   </div>

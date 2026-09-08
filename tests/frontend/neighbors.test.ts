@@ -2,11 +2,11 @@ import type { Edge, Node } from "specifyr";
 import { describe, expect, it } from "vitest";
 import { neighborsOf } from "../../frontend/composables/neighbors.js";
 
-function makeNode(id: string, name: string = id, type: string = "module"): Node {
+function makeNode(id: string, name: string = id, type = "module"): Node {
   return { id, type, name, classes: [] };
 }
 
-function makeEdge(id: string, from: string, to: string, type: string = "imports"): Edge {
+function makeEdge(id: string, from: string, to: string, type = "imports"): Edge {
   return { id, from, to, type };
 }
 
@@ -35,10 +35,7 @@ describe("neighborsOf", () => {
 
   it("ignores edges whose type is not 'imports'", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
-    const edges = [
-      makeEdge("e1", "a", "b", "extends"),
-      makeEdge("e2", "c", "a", "calls"),
-    ];
+    const edges = [makeEdge("e1", "a", "b", "extends"), makeEdge("e2", "c", "a", "calls")];
     const result = neighborsOf("a", nodes, edges);
     expect(result).toEqual({ imports: [], importedBy: [] });
   });

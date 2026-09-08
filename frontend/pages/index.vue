@@ -4,12 +4,14 @@ import {
   type Node as FlowNode,
   type Edge as FlowEdge,
   type NodeMouseEvent,
+  useVueFlow,
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
-import type { Model } from "specifyr";
+import type { Model, Node } from "specifyr";
 import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
+import { matchNodes } from "../composables/search-nodes.js";
 
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -18,6 +20,8 @@ type ViewSource = "soll" | "ist";
 const view = ref<ViewSource>("soll");
 const endpoint = computed(() => (view.value === "soll" ? "/api/soll" : "/api/ist"));
 const { data, error, status } = useFetch<Model>(endpoint, { watch: [view] });
+
+const { fitView } = useVueFlow();
 
 const layoutInput = computed(() => ({
   nodes: data.value?.nodes?.map((n) => ({ id: n.id, label: n.name })) ?? [],
@@ -52,6 +56,16 @@ const neighborIds = computed<Set<string>>(() => {
   return s;
 });
 
+const searchQuery = ref("");
+
+const matches = computed<Node[]>(() =>
+  matchNodes(searchQuery.value, data.value?.nodes ?? []),
+);
+
+const matchIds = computed<Set<string>>(
+  () => new Set(matches.value.map((n) => n.id)),
+);
+
 function onNodeClick({ node }: NodeMouseEvent): void {
   selectedNodeId.value = node.id;
 }
@@ -60,13 +74,23 @@ function onPaneClick(): void {
   selectedNodeId.value = undefined;
 }
 
+function onSearchSubmit(): void {
+  const first = matches.value[0];
+  if (!first) return;
+  selectedNodeId.value = first.id;
+  void fitView({ nodes: [first.id], duration: 400, padding: 0.3 });
+}
+
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
   const selectedId = selectedNode.value?.id;
   const hasSelection = Boolean(selectedId);
+  const hasSearch = searchQuery.value.trim().length > 0;
   return data.value.nodes.map((node) => {
-    const dim = hasSelection && !neighborIds.value.has(node.id);
+    const dimBySelection = hasSelection && !neighborIds.value.has(node.id);
+    const dimBySearch = hasSearch && !matchIds.value.has(node.id);
+    const dim = dimBySelection || dimBySearch;
     const classes = ["soll-node", nodeTypeClasses(node.type)];
     if (dim) classes.push("opacity-30");
     return {
@@ -130,6 +154,23 @@ const flowEdges = computed<FlowEdge[]>(() => {
           IST
         </button>
       </div>
+      <form class="flex items-center" role="search" @submit.prevent="onSearchSubmit">
+        <label class="sr-only" for="node-search">Search nodes</label>
+        <input
+          id="node-search"
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search nodes…"
+          class="w-64 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none"
+        />
+        <span
+          v-if="searchQuery.trim()"
+          class="ml-2 text-xs text-zinc-500"
+          aria-live="polite"
+        >
+          {{ matches.length }} match{{ matches.length === 1 ? "" : "es" }}
+        </span>
+      </form>
       <span v-if="data?.meta" class="text-zinc-600">
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>

@@ -19,7 +19,7 @@ export function matchNodes(query: string, nodes: readonly Node[]): Node[] {
       out.push(node);
       continue;
     }
-    if (node.path && node.path.toLowerCase().includes(needle)) {
+    if (node.path?.toLowerCase().includes(needle)) {
       out.push(node);
     }
   }

@@ -31,10 +31,7 @@ describe("matchNodes", () => {
   });
 
   it("matches paths case-insensitively when the name does not match", () => {
-    const nodes = [
-      makeNode("a", "alpha", "src/Foo/Bar.ts"),
-      makeNode("b", "bravo", "src/quux.ts"),
-    ];
+    const nodes = [makeNode("a", "alpha", "src/Foo/Bar.ts"), makeNode("b", "bravo", "src/quux.ts")];
     expect(matchNodes("foo/bar", nodes).map((n) => n.id)).toEqual(["a"]);
   });
 
@@ -55,10 +52,7 @@ describe("matchNodes", () => {
   });
 
   it("returns an empty array when nothing matches", () => {
-    const nodes = [
-      makeNode("a", "alpha", "src/a.ts"),
-      makeNode("b", "bravo", "src/b.ts"),
-    ];
+    const nodes = [makeNode("a", "alpha", "src/a.ts"), makeNode("b", "bravo", "src/b.ts")];
     expect(matchNodes("xyz", nodes)).toEqual([]);
   });
 });

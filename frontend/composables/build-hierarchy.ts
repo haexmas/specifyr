@@ -163,3 +163,27 @@ export function buildHierarchy(nodes: readonly Node[]): HierarchyNode[] {
   sortLevel(top);
   return top;
 }
+
+export interface FilePathResult {
+  /** Ancestor folder ids from top level down to (not including) the file, in order. */
+  folderIds: string[];
+  /** The id of the file entry that owns `nodeId` — itself, if `nodeId` was a file. */
+  fileId: string;
+}
+
+/** Locate the owning file (and its ancestor folder chain) for a hierarchy node id. */
+export function findFilePath(
+  hierarchy: readonly HierarchyNode[],
+  nodeId: string,
+): FilePathResult | undefined {
+  for (const entry of hierarchy) {
+    if (entry.kind === "file") {
+      const owns = entry.id === nodeId || entry.children.some((child) => child.id === nodeId);
+      if (owns) return { folderIds: [], fileId: entry.id };
+    } else if (entry.kind === "folder") {
+      const found = findFilePath(entry.children, nodeId);
+      if (found) return { folderIds: [entry.id, ...found.folderIds], fileId: found.fileId };
+    }
+  }
+  return undefined;
+}

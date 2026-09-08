@@ -163,6 +163,16 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       return content.includes("Select this folder") && content.includes("/api/browse");
     });
     expect(anyMentionsPicker).toBe(true);
+
+    // Explorer pane sanity check: the tree's heading text must survive into
+    // the JS bundle. A regression that dropped the Explorer pane would
+    // silently ship an editor with no folder/file navigation — this catches
+    // that.
+    const anyMentionsExplorer = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("Explorer");
+    });
+    expect(anyMentionsExplorer).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

@@ -20,15 +20,18 @@ export interface HierarchyNode {
 const NO_PATH = "\0no-path";
 const NO_FOLDER_ID = `folder:${NO_PATH}`;
 
+/** Return the final segment of a repo-relative file path. */
 function basename(filePath: string): string {
   const segments = filePath.split("/");
   return segments[segments.length - 1] ?? filePath;
 }
 
+/** Compare hierarchy entries by label without case sensitivity. */
 function compareLabel(a: HierarchyNode, b: HierarchyNode): number {
   return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
 }
 
+/** Sort one hierarchy level and recursively sort its child folders. */
 function sortLevel(entries: HierarchyNode[]): void {
   entries.sort((a, b) => {
     const aNoFolder = a.id === NO_FOLDER_ID;
@@ -41,6 +44,7 @@ function sortLevel(entries: HierarchyNode[]): void {
   }
 }
 
+/** Group flat specification nodes into a sorted folder, file, and symbol hierarchy. */
 export function buildHierarchy(nodes: readonly Node[]): HierarchyNode[] {
   if (nodes.length === 0) return [];
 

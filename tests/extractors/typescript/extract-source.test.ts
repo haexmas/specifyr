@@ -147,4 +147,37 @@ describe("extractSource", () => {
     const names = nodes.map((n) => n.name).sort();
     expect(names).toEqual(["App", "AppProps", "src/App.tsx"]);
   });
+
+  it("sets path on a symbol node to the file's relative path", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/auth.ts",
+      source: "export class AuthService {}\n",
+    });
+    const classNode = nodes.find((n) => n.type === "class");
+    expect(classNode?.path).toBe("src/auth.ts");
+  });
+
+  it("sets path on every symbol type in a file", async () => {
+    const source = `
+      export interface User {}
+      export type UserId = string;
+      export enum Role { admin, user }
+      export function login() {}
+    `;
+    const nodes = await extractSource({ relativePath: "src/all.ts", source });
+    const symbols = nodes.filter((n) => n.type !== "module");
+    expect(symbols).toHaveLength(4);
+    for (const symbol of symbols) {
+      expect(symbol.path).toBe("src/all.ts");
+    }
+  });
+
+  it("does not set path on the module node itself", async () => {
+    const nodes = await extractSource({
+      relativePath: "src/auth.ts",
+      source: "export class AuthService {}\n",
+    });
+    const moduleNode = nodes.find((n) => n.type === "module");
+    expect(moduleNode?.path).toBeUndefined();
+  });
 });

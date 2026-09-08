@@ -128,7 +128,9 @@ const flowEdges = computed<FlowEdge[]>(() => {
 
 <template>
   <div class="flex h-screen flex-col font-sans">
-    <header class="flex items-center gap-2 border-b border-zinc-300 bg-zinc-100 px-4 py-2 text-sm">
+    <header
+      class="flex flex-wrap items-center gap-2 border-b border-zinc-300 bg-zinc-100 px-4 py-2 text-sm"
+    >
       <strong>specifyr editor</strong>
       <div
         class="inline-flex overflow-hidden rounded-md border border-zinc-300"
@@ -154,14 +156,18 @@ const flowEdges = computed<FlowEdge[]>(() => {
           IST
         </button>
       </div>
-      <form class="flex items-center" role="search" @submit.prevent="onSearchSubmit">
+      <form
+        class="flex w-full min-w-0 items-center sm:w-auto"
+        role="search"
+        @submit.prevent="onSearchSubmit"
+      >
         <label class="sr-only" for="node-search">Search nodes</label>
         <input
           id="node-search"
           v-model="searchQuery"
           type="search"
           placeholder="Search nodes…"
-          class="w-64 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none"
+          class="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none sm:w-64 sm:flex-none"
         />
         <span
           v-if="searchQuery.trim()"
@@ -171,7 +177,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
           {{ matches.length }} match{{ matches.length === 1 ? "" : "es" }}
         </span>
       </form>
-      <span v-if="data?.meta" class="text-zinc-600">
+      <span v-if="data?.meta" class="min-w-0 break-words text-zinc-600">
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
       </span>

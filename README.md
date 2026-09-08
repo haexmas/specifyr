@@ -72,7 +72,8 @@ Slice Selection: click a node to reveal a right-side details sidebar; the graph 
 Slice Neighbors: selecting a node highlights its direct imports/importers and lists them as clickable rows in the sidebar — traversal from any starting point, no re-layout. ✅
 Slice Search: header input dims non-matching nodes with opacity-30 based on name or path; Enter jumps and fits the camera to the first match without re-layout. ✅
 Slice Repo Picker: open the editor with or without a path — an in-browser folder picker lets you pick and swap repositories; selection persists per browser via localStorage. ✅
-Slice Hierarchy Data (current): IST symbol nodes carry a path back to their file; new buildHierarchy() composable groups any node list into Folder → File → Symbol, ready for the Explorer tree + nested canvas redesign in upcoming slices. No visible editor change yet. ✅
+Slice Hierarchy Data: IST symbol nodes carry a path back to their file; new buildHierarchy() composable groups any node list into Folder → File → Symbol, ready for the Explorer tree + nested canvas redesign in upcoming slices. No visible editor change yet. ✅
+Slice Explorer Tree (current): a left-hand folder/file tree navigates the current view; selecting a file there or a node on the canvas keeps both in sync — the tree always shows where the current selection lives. Second slice of the Explorer/Canvas/Details redesign ([docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md](docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md)). ✅
 Slice C+ (planned): shadcn-vue / Pinia, extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
 
 ## License

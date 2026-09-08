@@ -50,13 +50,14 @@ const statusCommand = defineCommand({
 const editorCommand = defineCommand({
   meta: {
     name: "editor",
-    description: "Start the read-only editor on the given path (default: current directory).",
+    description:
+      "Start the read-only editor. If no path is given, pick a repository from the browser.",
   },
   args: {
     path: {
       type: "positional",
       required: false,
-      description: "Repository root (default: cwd).",
+      description: "Repository root (optional; picker opens in the browser when omitted).",
     },
     port: {
       type: "string",
@@ -70,7 +71,7 @@ const editorCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const repoPath = resolve(args.path ?? process.cwd());
+    const repoPath = args.path === undefined ? undefined : resolve(args.path);
     const port = args.port === undefined ? undefined : Number(args.port);
     if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
       throw new Error(`Invalid --port value: ${args.port}`);

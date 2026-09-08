@@ -1,3 +1,4 @@
+import { resolveRepoPath } from "../utils/repo-path.js";
 import { loadSollForRequest } from "../utils/soll.js";
 
 /**
@@ -6,7 +7,8 @@ import { loadSollForRequest } from "../utils/soll.js";
  */
 export default defineEventHandler(async (event) => {
   try {
-    return await loadSollForRequest();
+    const repoPath = resolveRepoPath(getQuery(event));
+    return await loadSollForRequest(repoPath);
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     setResponseStatus(event, 500);

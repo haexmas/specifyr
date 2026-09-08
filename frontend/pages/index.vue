@@ -12,14 +12,41 @@ import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
 import { matchNodes } from "../composables/search-nodes.js";
+import { useRepoPath } from "../composables/use-repo-path.js";
+import type { BrowseResult } from "../server/utils/browse.js";
 
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
 type ViewSource = "soll" | "ist";
 const view = ref<ViewSource>("soll");
-const endpoint = computed(() => (view.value === "soll" ? "/api/soll" : "/api/ist"));
-const { data, error, status } = useFetch<Model>(endpoint, { watch: [view] });
+const { repoPath, setRepoPath, isReady } = useRepoPath();
+
+const endpoint = computed(() => {
+  const base = view.value === "soll" ? "/api/soll" : "/api/ist";
+  return repoPath.value
+    ? `${base}?repoPath=${encodeURIComponent(repoPath.value)}`
+    : base;
+});
+const {
+  data,
+  error,
+  status,
+  execute: fetchModel,
+} = useFetch<Model>(endpoint, {
+  // Skip fetching until the composable has hydrated and a repoPath is chosen;
+  // the picker shows in place of the data views while inactive. Refetch on
+  // view / repoPath / isReady changes is driven by the explicit watch below so
+  // useFetch's own `watch` option is intentionally omitted (else it double-fires).
+  immediate: false,
+});
+watch(
+  [isReady, repoPath, view],
+  () => {
+    if (isReady.value && repoPath.value) void fetchModel();
+  },
+  { immediate: true },
+);
 
 const { fitView } = useVueFlow();
 
@@ -124,6 +151,112 @@ const flowEdges = computed<FlowEdge[]>(() => {
     };
   });
 });
+
+// -- Picker modal -----------------------------------------------------------
+
+const pickerOpen = ref(false);
+const browsePath = ref<string | undefined>(undefined);
+
+const showPicker = computed(() => isReady.value && (!repoPath.value || pickerOpen.value));
+
+const browseEndpoint = computed(() =>
+  browsePath.value
+    ? `/api/browse?path=${encodeURIComponent(browsePath.value)}`
+    : "/api/browse",
+);
+const {
+  data: browseData,
+  error: browseError,
+  execute: fetchBrowse,
+} = useFetch<BrowseResult>(browseEndpoint, {
+  // Driven by the explicit watches below (visibility + browsePath) so the
+  // fetch fires once per user action instead of racing with useFetch's own
+  // internal watcher on `browseEndpoint`.
+  immediate: false,
+});
+const pickerDialog = ref<HTMLElement | null>(null);
+// Fetch once whenever the picker becomes visible or its browse path changes.
+watch(
+  [showPicker, browsePath],
+  ([visible]) => {
+    if (visible) void fetchBrowse();
+  },
+  { immediate: true },
+);
+watch(
+  showPicker,
+  (visible) => {
+    if (visible) void nextTick(() => pickerDialog.value?.focus());
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  watch(
+    showPicker,
+    (visible) => {
+      if (visible) document.addEventListener("keydown", onPickerEsc);
+      else document.removeEventListener("keydown", onPickerEsc);
+    },
+    { immediate: true },
+  );
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onPickerEsc);
+});
+
+function joinPath(parent: string, name: string): string {
+  return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
+}
+
+function drillDown(name: string): void {
+  const current = browseData.value?.path;
+  if (!current) return;
+  browsePath.value = joinPath(current, name);
+}
+
+function goUp(): void {
+  const parent = browseData.value?.parent;
+  if (!parent) return;
+  browsePath.value = parent;
+}
+
+function goHome(): void {
+  const home = browseData.value?.home;
+  if (!home) return;
+  browsePath.value = home;
+}
+
+function openPicker(): void {
+  browsePath.value = browseData.value?.home ?? undefined;
+  pickerOpen.value = true;
+}
+
+function selectCurrent(): void {
+  const current = browseData.value?.path;
+  if (!current) return;
+  setRepoPath(current);
+  pickerOpen.value = false;
+}
+
+function cancelPicker(): void {
+  if (!repoPath.value) return; // nothing to cancel to on cold start
+  pickerOpen.value = false;
+}
+
+function onPickerEsc(event?: KeyboardEvent): void {
+  if (event?.key && event.key !== "Escape") return;
+  cancelPicker();
+}
+
+/** Middle-truncate a path so both ends stay visible in the header badge. */
+function shortenPath(value: string, max = 48): string {
+  if (value.length <= max) return value;
+  const head = Math.ceil((max - 1) / 2);
+  const tail = Math.floor((max - 1) / 2);
+  return `${value.slice(0, head)}…${value.slice(value.length - tail)}`;
+}
 </script>
 
 <template>
@@ -177,6 +310,22 @@ const flowEdges = computed<FlowEdge[]>(() => {
           {{ matches.length }} match{{ matches.length === 1 ? "" : "es" }}
         </span>
       </form>
+      <span v-if="repoPath" class="flex min-w-0 items-center gap-1 text-zinc-600">
+        <span
+          class="max-w-[24rem] truncate rounded bg-zinc-200 px-2 py-0.5 font-mono text-xs"
+          :title="repoPath"
+        >
+          {{ shortenPath(repoPath) }}
+        </span>
+        <button
+          type="button"
+          class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs hover:bg-zinc-50"
+          style="font: inherit"
+          @click="openPicker"
+        >
+          Change…
+        </button>
+      </span>
       <span v-if="data?.meta" class="min-w-0 break-words text-zinc-600">
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
@@ -185,7 +334,19 @@ const flowEdges = computed<FlowEdge[]>(() => {
     </header>
 
     <div
-      v-if="status === 'pending'"
+      v-if="!isReady"
+      class="flex flex-1 items-center justify-center text-zinc-500"
+    >
+      Loading…
+    </div>
+    <div
+      v-else-if="!repoPath"
+      class="flex flex-1 items-center justify-center text-zinc-500"
+    >
+      Select a repository to get started.
+    </div>
+    <div
+      v-else-if="status === 'pending'"
       class="flex flex-1 items-center justify-center text-zinc-500"
     >
       Loading…
@@ -265,6 +426,104 @@ const flowEdges = computed<FlowEdge[]>(() => {
           <p v-else class="text-xs text-zinc-500">None</p>
         </section>
       </aside>
+    </div>
+
+    <div
+      v-if="showPicker"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="repo-picker-title"
+      ref="pickerDialog"
+      tabindex="-1"
+      @keydown.esc="onPickerEsc"
+    >
+      <div class="w-[560px] max-w-full rounded-lg bg-white p-4 shadow-xl">
+        <div class="mb-3 flex items-center gap-2">
+          <h2
+            id="repo-picker-title"
+            class="mr-auto text-sm font-semibold text-zinc-700"
+          >
+            Select a repository
+          </h2>
+          <button
+            type="button"
+            class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-1 text-xs hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+            style="font: inherit"
+            :disabled="!browseData?.parent"
+            aria-label="Go to parent directory"
+            @click="goUp"
+          >
+            ↑ Up
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-1 text-xs hover:bg-zinc-50"
+            style="font: inherit"
+            @click="goHome"
+          >
+            ⌂ Home
+          </button>
+        </div>
+        <div
+          class="mb-2 truncate rounded bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700"
+          :title="browseData?.path ?? ''"
+        >
+          {{ browseData?.path ?? "Loading…" }}
+        </div>
+        <div
+          class="mb-3 max-h-[50vh] min-h-[8rem] overflow-y-auto rounded border border-zinc-200"
+        >
+          <p v-if="browseError" class="p-3 text-xs text-red-600">
+            Error:
+            {{ (browseError.data as { error?: string })?.error ?? browseError.message }}
+          </p>
+          <p
+            v-else-if="!browseData"
+            class="p-3 text-xs text-zinc-500"
+          >
+            Loading…
+          </p>
+          <p
+            v-else-if="browseData.entries.length === 0"
+            class="p-3 text-xs text-zinc-500"
+          >
+            No subdirectories.
+          </p>
+          <ul v-else class="divide-y divide-zinc-100">
+            <li v-for="entry in browseData.entries" :key="entry.name">
+              <button
+                type="button"
+                class="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-100"
+                style="font: inherit"
+                @click="drillDown(entry.name)"
+              >
+                {{ entry.name }}/
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="flex items-center justify-end gap-2">
+          <button
+            v-if="repoPath"
+            type="button"
+            class="cursor-pointer rounded border border-zinc-300 bg-white px-3 py-1 text-xs hover:bg-zinc-50"
+            style="font: inherit"
+            @click="cancelPicker"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer rounded bg-zinc-800 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+            style="font: inherit"
+            :disabled="!browseData?.path"
+            @click="selectCurrent"
+          >
+            Select this folder
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

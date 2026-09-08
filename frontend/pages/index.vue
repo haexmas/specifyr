@@ -48,7 +48,7 @@ const neighborIds = computed<Set<string>>(() => {
   const s = new Set<string>();
   for (const n of neighbors.value.imports) s.add(n.id);
   for (const n of neighbors.value.importedBy) s.add(n.id);
-  if (selectedNodeId.value) s.add(selectedNodeId.value);
+  if (selectedNode.value) s.add(selectedNode.value.id);
   return s;
 });
 
@@ -63,7 +63,8 @@ function onPaneClick(): void {
 /** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
 const flowNodes = computed<FlowNode[]>(() => {
   if (!data.value?.nodes) return [];
-  const hasSelection = Boolean(selectedNodeId.value);
+  const selectedId = selectedNode.value?.id;
+  const hasSelection = Boolean(selectedId);
   return data.value.nodes.map((node) => {
     const dim = hasSelection && !neighborIds.value.has(node.id);
     const classes = ["soll-node", nodeTypeClasses(node.type)];
@@ -74,7 +75,7 @@ const flowNodes = computed<FlowNode[]>(() => {
       position: positions.value.get(node.id) ?? { x: 0, y: 0 },
       data: { label: `${node.name}\n(${node.type})` },
       class: classes.join(" "),
-      selected: node.id === selectedNodeId.value,
+      selected: node.id === selectedId,
     };
   });
 });
@@ -82,9 +83,13 @@ const flowNodes = computed<FlowNode[]>(() => {
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
-  const selectedId = selectedNodeId.value;
+  const selectedId = selectedNode.value?.id;
   return data.value.edges.map((edge) => {
-    const dim = Boolean(selectedId) && edge.from !== selectedId && edge.to !== selectedId;
+    const dim =
+      Boolean(selectedId) &&
+      edge.type !== "imports" &&
+      edge.from !== selectedId &&
+      edge.to !== selectedId;
     return {
       id: edge.id,
       source: edge.from,

@@ -19,7 +19,7 @@
 
 ---
 
-### Task 1: Branch + plan doc
+## Task 1: Branch + plan doc
 
 **Files:**
 - Create: `docs/plans/2026-09-08-specifyr-ts-slice-neighbors.md` (this file)
@@ -37,7 +37,7 @@ git commit -m "Add Slice Neighbors plan: highlight + traversable neighbors"
 
 ---
 
-### Task 2: `neighborsOf` helper (TDD)
+## Task 2: `neighborsOf` helper (TDD)
 
 **Files:**
 - Create: `frontend/composables/neighbors.ts`
@@ -81,7 +81,7 @@ Cover:
 
 **Step 2: Run tests, confirm fail**
 
-```
+```bash
 pnpm test tests/frontend/neighbors.test.ts
 ```
 
@@ -91,7 +91,7 @@ Minimum code to make tests pass. Use `Map<string, Node>` for id-lookup — even 
 
 **Step 4: Run tests, confirm pass**
 
-```
+```bash
 pnpm test tests/frontend/neighbors.test.ts
 ```
 
@@ -104,7 +104,7 @@ git commit -m "Add neighborsOf composable for graph traversal (TDD)"
 
 ---
 
-### Task 3: Wire sidebar + dim classes
+## Task 3: Wire sidebar + dim classes
 
 **Files:**
 - Modify: `frontend/pages/index.vue`
@@ -125,7 +125,7 @@ git commit -m "Add neighborsOf composable for graph traversal (TDD)"
      const s = new Set<string>();
      for (const n of neighbors.value.imports) s.add(n.id);
      for (const n of neighbors.value.importedBy) s.add(n.id);
-     if (selectedNodeId.value) s.add(selectedNodeId.value);
+     if (selectedNode.value) s.add(selectedNode.value.id);
      return s;
    });
    ```
@@ -142,6 +142,7 @@ git commit -m "Add neighborsOf composable for graph traversal (TDD)"
          <button
            type="button"
            class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+           :title="n.name"
            @click="selectedNodeId = n.id"
          >{{ n.name }}</button>
        </li>
@@ -157,6 +158,7 @@ git commit -m "Add neighborsOf composable for graph traversal (TDD)"
          <button
            type="button"
            class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+           :title="n.name"
            @click="selectedNodeId = n.id"
          >{{ n.name }}</button>
        </li>
@@ -169,9 +171,10 @@ git commit -m "Add neighborsOf composable for graph traversal (TDD)"
 
 - `pnpm typecheck` clean
 - `pnpm lint` clean
-- Full `pnpm test` still 208+ green (Slice Selection was 207 baseline; +neighbors.test.ts count)
+- Full `pnpm test` still 216 green (Slice Selection was 207 baseline; +9 neighbor tests)
 - Frontend `pnpm --filter specifyr-frontend build` succeeds
 - Layout stability: `useElkLayout.inputKey` unchanged (must still be `{n: node.id[], e: edge.id:from->to[]}`); grep to confirm.
+- Both neighbor button types expose the full path via their native `title` on hover.
 
 **Commit:**
 
@@ -182,21 +185,21 @@ git commit -m "Wire neighbor highlight + neighbor lists into the editor page"
 
 ---
 
-### Task 4: Code-review checkpoint
+## Task 4: Code-review checkpoint
 
 Dispatch `superpowers:code-reviewer` subagent to review Task 2-3 commits. Focus:
 
 - **Layout stability (Plan-001 no-jump)** — `useElkLayout.inputKey` must NOT include neighbor / selection state. Verify.
 - **Node/edge class mapping** — dim class must NOT change node identity or position; only visual.
 - **Neighbor click** — setting `selectedNodeId = n.id` re-runs `selectedNode`/`neighbors` computeds; new neighbor set becomes the new "focus"; the previous focus dims. Confirm this is the intended traversal UX and does not accidentally scroll or re-fire layout.
-- **Sidebar UX** — clickable rows should be reachable via keyboard (they are `<button>`s, so yes); truncate long names but full name is available via native `title` attribute? Consider adding.
+- **Sidebar UX** — clickable rows should be reachable via keyboard (they are `<button>`s, so yes); visible labels may be truncated, but both neighbor buttons must expose the complete `n.name` via their native `title` attribute.
 - **Edge case** — a node with zero neighbors renders "None" placeholders. Fine, don't hide the sections (users need to see the zero count as information).
 
 Apply approved suggestions before proceeding.
 
 ---
 
-### Task 5: E2E bundle-content guard
+## Task 5: E2E bundle-content guard
 
 **Files:**
 - Modify: `tests/cli/editor-ist-integration.test.ts`
@@ -224,14 +227,14 @@ git commit -m "Guard neighbor sidebar sections in bundle"
 
 ---
 
-### Task 6: README bump + push + PR
+## Task 6: README bump + push + PR
 
 **Files:**
 - Modify: `README.md`
 
 **Step 1:** Under `## Status`, extend the Slice Selection line or add a new line:
 
-```
+```text
 Slice Neighbors (current): selecting a node highlights direct imports/importers in the graph and lists them as clickable rows in the sidebar — traversal from any starting point. ✅
 ```
 
@@ -239,11 +242,11 @@ Move the previous `(current)` marker back off Slice Selection.
 
 **Step 2:** Green gate
 
-```
+```bash
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All must be green. Test count expected: 207 (baseline) + 8-ish new = 215+.
+All must be green. Test count: 207 (baseline) + 9 neighbor tests = 216.
 
 **Step 3:** Commit + push + PR
 
@@ -256,7 +259,7 @@ gh pr create --title "Slice Neighbors: highlight + traversable direct neighbors"
 
 - Select a node → its direct import neighbors highlight; the rest dims.
 - Sidebar gains two new sections: `Imports (n)` and `Imported by (n)`, each row a clickable button that jumps selection to that neighbor. Traversal from any starting point.
-- Pure `neighborsOf(nodeId, nodes, edges)` composable computes the two lists (TDD, 8 tests). Dedupe, sort by name, silently skip dangling edges and self-loops.
+- Pure `neighborsOf(nodeId, nodes, edges)` composable computes the two lists (TDD, 9 tests). Dedupe, sort by name, silently skip dangling edges and self-loops.
 - Dim state is a Tailwind opacity utility on Vue Flow's node/edge `class` — no ELK re-layout (Plan-001 no-jump contract preserved).
 - E2E bundle guard for `Imports (` / `Imported by (` markers.
 - Follow-up to Slice Selection; roadmap link in [plans/001](plans/001-editor-perspectives-and-state-comparison.md).
@@ -265,7 +268,7 @@ gh pr create --title "Slice Neighbors: highlight + traversable direct neighbors"
 
 - [x] `pnpm typecheck` (root + `nuxt typecheck`) — clean
 - [x] `pnpm lint` — clean
-- [x] `pnpm test` — full suite green, 215+ tests
+- [x] `pnpm test` — full suite green, 216 tests
 - [x] `pnpm build` + frontend build succeed
 - [x] E2E bundle assertion for neighbor UI passes
 - [x] Manual: select node with many importers → sidebar populates, click importer → selection jumps, dim state updates without graph reshuffle

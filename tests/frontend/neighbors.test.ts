@@ -57,6 +57,12 @@ describe("neighborsOf", () => {
     expect(result).toEqual({ imports: [], importedBy: [] });
   });
 
+  it("returns empty lists when the queried node is unknown", () => {
+    const nodes = [makeNode("a")];
+    const edges = [makeEdge("e1", "ghost", "a"), makeEdge("e2", "a", "ghost")];
+    expect(neighborsOf("ghost", nodes, edges)).toEqual({ imports: [], importedBy: [] });
+  });
+
   it("excludes self-loops from both lists", () => {
     const nodes = [makeNode("a")];
     const edges = [makeEdge("e1", "a", "a")];

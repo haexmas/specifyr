@@ -24,6 +24,10 @@ export function neighborsOf(
     byId.set(node.id, node);
   }
 
+  if (!byId.has(nodeId)) {
+    return { imports: [], importedBy: [] };
+  }
+
   const importIds = new Set<string>();
   const importedByIds = new Set<string>();
   for (const edge of edges) {

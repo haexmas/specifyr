@@ -2,10 +2,12 @@ import type { Edge, Node } from "specifyr";
 import { describe, expect, it } from "vitest";
 import { neighborsOf } from "../../frontend/composables/neighbors.js";
 
+/** Create a model node for neighbor traversal tests. */
 function makeNode(id: string, name: string = id, type = "module"): Node {
   return { id, type, name, classes: [] };
 }
 
+/** Create a model edge for neighbor traversal tests. */
 function makeEdge(id: string, from: string, to: string, type = "imports"): Edge {
   return { id, from, to, type };
 }

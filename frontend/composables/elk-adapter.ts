@@ -55,8 +55,14 @@ export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphI
       "elk.spacing.edgeNode": "8",
       "elk.spacing.edgeEdge": "6",
       "elk.padding": "[top=0,left=0,bottom=0,right=0]",
-      // Push nodes leftward after layering so sparse rows don't sprawl.
-      "elk.layered.compaction.postCompaction.strategy": "LEFT",
+      // `SIMPLE` placement + `LEFTUP` alignment force every node inside a
+      // layer to align to the same left edge. Default BRANDES_KOEPF gives
+      // each node a "balanced" x-position that can drift right in linear
+      // chains (one-node-per-layer), producing visible zig-zag between
+      // siblings. `LEFTUP` locks them to the leftmost feasible column;
+      // postCompaction is not needed since SIMPLE is already tight.
+      "elk.layered.nodePlacement.strategy": "SIMPLE",
+      "elk.layered.nodePlacement.bk.fixedAlignment": "LEFTUP",
     },
     children: input.nodes.map((n) => {
       const size = sizeOf?.(n.id);

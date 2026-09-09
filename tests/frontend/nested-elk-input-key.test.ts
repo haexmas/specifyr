@@ -4,7 +4,6 @@ import type { HierarchyNode } from "../../frontend/composables/build-hierarchy.j
 import type { AdapterEdge } from "../../frontend/composables/elk-adapter.js";
 import {
   EXPANDED_CELL_HEIGHT,
-  EXPANDED_CELL_WIDTH,
   buildNestedInputKey,
   useNestedElkLayout,
 } from "../../frontend/composables/useNestedElkLayout.js";
@@ -129,7 +128,11 @@ describe("buildNestedInputKey", () => {
     expect(withExtra).not.toBe(withoutExtra);
   });
 
-  it("caps an expanded wrapper at its reserved outer dimensions", async () => {
+  it("grows an expanded wrapper past its cell dimensions when content exceeds them", async () => {
+    // Vue Flow renders child nodes as DOM siblings to the parent node, not
+    // inside its subtree — so a CSS overflow cap on the wrapper cannot clip
+    // them. Grow-to-fit is the only visually honest option; the top-level
+    // grid is what protects sibling anchoring, not the wrapper's own size.
     const hierarchy = [
       folder(
         "folder:large",
@@ -145,7 +148,8 @@ describe("buildNestedInputKey", () => {
     await vi.waitFor(() => expect(result.pending.value).toBe(false));
 
     const wrapper = result.layout.value.get("folder:large");
-    expect(wrapper?.width).toBe(EXPANDED_CELL_WIDTH);
-    expect(wrapper?.height).toBeLessThanOrEqual(EXPANDED_CELL_HEIGHT);
+    expect(wrapper?.width).toBeGreaterThan(0);
+    // 100 children stacked vertically definitely exceed the reserved cell height.
+    expect(wrapper?.height).toBeGreaterThan(EXPANDED_CELL_HEIGHT);
   });
 });

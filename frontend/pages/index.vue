@@ -288,8 +288,13 @@ const flowEdges = computed<FlowEdge[]>(() => {
       target: edge.to,
       type: "smoothstep",
       animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#71717a", width: 16, height: 16 },
-      style: { stroke: "#71717a", strokeWidth: 1.5 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: "var(--graph-arrow)",
+        width: 16,
+        height: 16,
+      },
+      style: { stroke: "var(--graph-arrow)", strokeWidth: 1.5 },
       class: dim ? "opacity-20" : "",
     };
   });
@@ -529,7 +534,7 @@ function shortenPath(value: string, max = 48): string {
           @node-click="onNodeClick"
           @pane-click="onPaneClick"
         >
-          <Background />
+          <Background pattern-color="var(--graph-grid)" />
         </VueFlow>
       </div>
       <aside
@@ -700,8 +705,8 @@ function shortenPath(value: string, max = 48): string {
 .wrapper-node.vue-flow__node-default {
   border-radius: 0.5rem;
   border-width: 1px;
-  border-color: rgb(212 212 216); /* zinc-300 */
-  background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
+  border-color: var(--graph-arrow);
+  background: color-mix(in oklab, var(--graph-mask), transparent 30%);
   padding: 0;
   text-align: left;
 }

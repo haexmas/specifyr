@@ -1,1 +1,63 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens — role, graph, and delta variables shared across the editor.
+ * Adopts the visual language from plans/005-visual-language-and-diff-views.md
+ * Schnitt A verbatim (Archify MIT, © 2025 Cocoon AI, © 2026 tt-a1i;
+ * https://github.com/tt-a1i/archify). Only the tokens land here; the custom
+ * `RoleNode`/`RoleEdge` components and the shadcn-vue primitives that
+ * consume the delta variables come in later Plan 005 slices.
+ */
+@layer base {
+  :root,
+  [data-theme="dark"] {
+    --graph-bg: #020617;
+    --graph-grid: #1e293b;
+    --graph-arrow: #64748b;
+    --graph-arrow-emphasis: #34d399;
+    --graph-mask: #0f172a;
+
+    --role-frontend-fill: rgba(8, 51, 68, 0.4);
+    --role-frontend-stroke: #22d3ee;
+    --role-backend-fill: rgba(6, 78, 59, 0.4);
+    --role-backend-stroke: #34d399;
+    --role-database-fill: rgba(76, 29, 149, 0.4);
+    --role-database-stroke: #a78bfa;
+    --role-cloud-fill: rgba(120, 53, 15, 0.3);
+    --role-cloud-stroke: #fbbf24;
+    --role-external-fill: rgba(30, 41, 59, 0.5);
+    --role-external-stroke: #94a3b8;
+    --role-messagebus-fill: rgba(251, 146, 60, 0.3);
+    --role-messagebus-stroke: #fb923c;
+    --role-security-fill: rgba(136, 19, 55, 0.4);
+    --role-security-stroke: #fb7185;
+
+    --delta-add: #34d399;
+    --delta-remove: #fb7185;
+    --delta-change: #fbbf24;
+    --delta-same-opacity: 0.38;
+  }
+
+  [data-theme="light"] {
+    --graph-bg: #f8fafc;
+    --graph-grid: #e2e8f0;
+    --graph-arrow: #94a3b8;
+    --graph-arrow-emphasis: #059669;
+    --graph-mask: #ffffff;
+
+    --role-frontend-fill: rgba(34, 211, 238, 0.15);
+    --role-frontend-stroke: #0891b2;
+    --role-backend-fill: rgba(52, 211, 153, 0.18);
+    --role-backend-stroke: #059669;
+    --role-database-fill: rgba(167, 139, 250, 0.2);
+    --role-database-stroke: #7c3aed;
+    --role-cloud-fill: rgba(251, 191, 36, 0.18);
+    --role-cloud-stroke: #d97706;
+    --role-external-fill: rgba(148, 163, 184, 0.18);
+    --role-external-stroke: #64748b;
+    --role-messagebus-fill: rgba(251, 146, 60, 0.15);
+    --role-messagebus-stroke: #ea580c;
+    --role-security-fill: rgba(251, 113, 133, 0.15);
+    --role-security-stroke: #e11d48;
+  }
+}

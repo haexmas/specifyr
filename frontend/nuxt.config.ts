@@ -13,7 +13,12 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: "specifyr editor",
-      htmlAttrs: { lang: "en" },
+      // `data-theme` is fixed to `light` on purpose while the chrome (top bar,
+      // sidebars, dialog) still uses hard-coded Tailwind zinc classes. The
+      // full dark palette landed for later Plan 005 slices (Schnitt A tokens,
+      // Schnitt E shadcn top bar); flipping the default before those ship
+      // would leave the chrome unstyled against a dark canvas.
+      htmlAttrs: { lang: "en", "data-theme": "light" },
     },
   },
 });

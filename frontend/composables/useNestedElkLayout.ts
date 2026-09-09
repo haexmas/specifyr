@@ -81,17 +81,20 @@ export function buildNestedInputKey(
 }
 
 /**
- * Return the wrapper size for an expanded container given the bounding
- * box its scoped ELK call produced for the children. The wrapper keeps the
- * full content bounds so Vue Flow's canvas can pan to every child.
+ * Return the bounded outer size for an expanded container given the bounding
+ * box its scoped ELK call produced for the children. Content beyond the cap
+ * remains available through the wrapper's local overflow scroll.
  */
 function wrapperSizeForContent(contentSize: {
   width: number;
   height: number;
 }): { width: number; height: number } {
   return {
-    width: contentSize.width + 2 * CONTAINER_PADDING,
-    height: contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
+    width: Math.min(EXPANDED_CELL_WIDTH, contentSize.width + 2 * CONTAINER_PADDING),
+    height: Math.min(
+      EXPANDED_CELL_HEIGHT,
+      contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
+    ),
   };
 }
 

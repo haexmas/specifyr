@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import type { HierarchyNode } from "../../frontend/composables/build-hierarchy.js";
 import type { AdapterEdge } from "../../frontend/composables/elk-adapter.js";
-import { buildNestedInputKey } from "../../frontend/composables/useNestedElkLayout.js";
+import {
+  EXPANDED_CELL_HEIGHT,
+  EXPANDED_CELL_WIDTH,
+  buildNestedInputKey,
+  useNestedElkLayout,
+} from "../../frontend/composables/useNestedElkLayout.js";
 
 /** Build a leaf hierarchy node (symbol) for tests. */
 function leaf(id: string, label = id): HierarchyNode {
@@ -121,5 +127,25 @@ describe("buildNestedInputKey", () => {
     hierarchyPlus[1]?.children[0]?.children.push(leaf("sym-epsilon"));
     const withExtra = buildNestedInputKey(hierarchyPlus, new Set<string>(), edges);
     expect(withExtra).not.toBe(withoutExtra);
+  });
+
+  it("caps an expanded wrapper at its reserved outer dimensions", async () => {
+    const hierarchy = [
+      folder(
+        "folder:large",
+        Array.from({ length: 100 }, (_, index) => file(`file:${index}.ts`, [])),
+      ),
+    ];
+    const result = useNestedElkLayout({
+      hierarchy: ref(hierarchy),
+      expandedIds: ref(new Set(["folder:large"])),
+      edges: ref([]),
+    });
+
+    await vi.waitFor(() => expect(result.pending.value).toBe(false));
+
+    const wrapper = result.layout.value.get("folder:large");
+    expect(wrapper?.width).toBe(EXPANDED_CELL_WIDTH);
+    expect(wrapper?.height).toBeLessThanOrEqual(EXPANDED_CELL_HEIGHT);
   });
 });

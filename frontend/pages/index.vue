@@ -694,6 +694,10 @@ function shortenPath(value: string, max = 48): string {
   background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
   padding: 0;
   text-align: left;
+  overflow: hidden;
+}
+.wrapper-node.wrapper-expanded.vue-flow__node-default {
+  overflow: auto;
 }
 .wrapper-node.wrapper-collapsed.vue-flow__node-default {
   min-width: 160px;

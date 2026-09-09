@@ -153,8 +153,10 @@ function onExplorerSelect(nodeId: string | undefined): void {
   const fitId = nodeId
     ? (findFilePath(hierarchy.value, nodeId)?.fileId ?? nodeId)
     : undefined;
-  if (fitId) void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
+  pendingFitId.value = fitId;
 }
+
+const pendingFitId = ref<string | undefined>(undefined);
 
 /**
  * Emits three flavours of Vue Flow node from the nested `layout` map:
@@ -180,6 +182,12 @@ const flowNodes = computed<FlowNode[]>(() => {
     for (const entry of entries) {
       const entryLayout = layoutMap.get(entry.id);
       if (!entryLayout) continue;
+      const parentLayout = entryLayout.parentId
+        ? layoutMap.get(entryLayout.parentId)
+        : undefined;
+      const position = parentLayout
+        ? { x: entryLayout.x - parentLayout.x, y: entryLayout.y - parentLayout.y }
+        : { x: entryLayout.x, y: entryLayout.y };
       if (entry.kind === "folder" || entry.kind === "file") {
         const expanded = expandedCanvasIds.has(entry.id) && entry.children.length > 0;
         // Intermediate variable (inferred literal type) preserves the
@@ -188,7 +196,7 @@ const flowNodes = computed<FlowNode[]>(() => {
         const wrapperNode = {
           id: entry.id,
           type: "default",
-          position: { x: entryLayout.x, y: entryLayout.y },
+          position,
           data: { label: entry.label, kind: entry.kind, expanded },
           style: {
             width: `${entryLayout.width}px`,
@@ -215,7 +223,7 @@ const flowNodes = computed<FlowNode[]>(() => {
         const symbolNode = {
           id: node.id,
           type: "default",
-          position: { x: entryLayout.x, y: entryLayout.y },
+          position,
           data: { label: `${node.name}\n(${node.type})` },
           class: classes.join(" "),
           selected: node.id === selectedId,
@@ -230,6 +238,17 @@ const flowNodes = computed<FlowNode[]>(() => {
   walk(hierarchy.value);
   return results;
 });
+
+watch(
+  [layoutPending, flowNodes, pendingFitId],
+  ([pending]) => {
+    const fitId = pendingFitId.value;
+    if (pending || !fitId || !flowNodes.value.some((node) => node.id === fitId)) return;
+    pendingFitId.value = undefined;
+    void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
+  },
+  { flush: "post" },
+);
 
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
@@ -668,10 +687,6 @@ function shortenPath(value: string, max = 48): string {
   background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
   padding: 0;
   text-align: left;
-  overflow: hidden; /* CSS scroll on overflow — matches design doc's local scroll */
-}
-.wrapper-node.wrapper-expanded.vue-flow__node-default {
-  overflow: auto;
 }
 .wrapper-node.wrapper-collapsed.vue-flow__node-default {
   min-width: 160px;

@@ -7,7 +7,7 @@ import { layoutContainer } from "./layout-container.js";
 
 export const BADGE_WIDTH = 160;
 export const BADGE_HEIGHT = 40;
-/** Outer cap for an expanded wrapper (top-level or nested). Overflow scrolls. */
+/** Minimum dimensions reserved for top-level wrapper grid cells. */
 export const EXPANDED_CELL_WIDTH = 640;
 export const EXPANDED_CELL_HEIGHT = 480;
 /** Reserved space at the top of an expanded wrapper for its own header/label. */
@@ -75,20 +75,16 @@ export function buildNestedInputKey(
 
 /**
  * Return the wrapper size for an expanded container given the bounding
- * box its scoped ELK call produced for the children. Content overflow is
- * clamped to the outer cap; internal scroll (Task 5's CSS) handles the
- * rest.
+ * box its scoped ELK call produced for the children. The wrapper keeps the
+ * full content bounds so Vue Flow's canvas can pan to every child.
  */
 function wrapperSizeForContent(contentSize: {
   width: number;
   height: number;
 }): { width: number; height: number } {
   return {
-    width: Math.min(EXPANDED_CELL_WIDTH, contentSize.width + 2 * CONTAINER_PADDING),
-    height: Math.min(
-      EXPANDED_CELL_HEIGHT,
-      contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
-    ),
+    width: contentSize.width + 2 * CONTAINER_PADDING,
+    height: contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
   };
 }
 
@@ -235,10 +231,16 @@ export function useNestedElkLayout({
 
       const topLevelIds = currentHierarchy.map((e) => e.id);
       const columns = Math.max(1, Math.min(topLevelIds.length, MAX_TOP_LEVEL_COLUMNS));
+      let cellWidth = EXPANDED_CELL_WIDTH;
+      let cellHeight = EXPANDED_CELL_HEIGHT;
+      for (const nodeLayout of topLevelLayouts.values()) {
+        cellWidth = Math.max(cellWidth, nodeLayout.size.width);
+        cellHeight = Math.max(cellHeight, nodeLayout.size.height);
+      }
       const gridCells = computeGridPlacement(topLevelIds, {
         columns,
-        cellWidth: EXPANDED_CELL_WIDTH,
-        cellHeight: EXPANDED_CELL_HEIGHT,
+        cellWidth,
+        cellHeight,
         gap: TOP_LEVEL_GRID_GAP,
       });
 

@@ -7,9 +7,16 @@ import { layoutContainer } from "./layout-container.js";
 
 export const BADGE_WIDTH = 160;
 export const BADGE_HEIGHT = 40;
-/** Minimum dimensions reserved for top-level wrapper grid cells. */
-export const EXPANDED_CELL_WIDTH = 640;
-export const EXPANDED_CELL_HEIGHT = 480;
+/**
+ * Fixed dimensions reserved for every top-level wrapper grid cell.
+ * Chosen generous enough to hold a typical expanded top-level folder
+ * (one or two file levels of nesting) without visibly overflowing its
+ * neighbor's cell. Wrappers whose content exceeds this still grow to
+ * fit — they just visually overlap the reserved gap; siblings' grid
+ * positions never shift so the eye keeps its anchor when things open.
+ */
+export const EXPANDED_CELL_WIDTH = 900;
+export const EXPANDED_CELL_HEIGHT = 720;
 /** Reserved space at the top of an expanded wrapper for its own header/label. */
 export const HEADER_HEIGHT = 28;
 /** Inner padding around scoped ELK children inside an expanded wrapper. */
@@ -231,16 +238,15 @@ export function useNestedElkLayout({
 
       const topLevelIds = currentHierarchy.map((e) => e.id);
       const columns = Math.max(1, Math.min(topLevelIds.length, MAX_TOP_LEVEL_COLUMNS));
-      let cellWidth = EXPANDED_CELL_WIDTH;
-      let cellHeight = EXPANDED_CELL_HEIGHT;
-      for (const nodeLayout of topLevelLayouts.values()) {
-        cellWidth = Math.max(cellWidth, nodeLayout.size.width);
-        cellHeight = Math.max(cellHeight, nodeLayout.size.height);
-      }
+      // Fixed cell dimensions: expanding a wrapper must never shift its
+      // siblings. A wrapper whose content exceeds the cell just visually
+      // overlaps its neighbour's reserved rectangle — the whole point of
+      // Slice 3 (the reason for the redesign) is that the eye keeps its
+      // anchor when things open and close.
       const gridCells = computeGridPlacement(topLevelIds, {
         columns,
-        cellWidth,
-        cellHeight,
+        cellWidth: EXPANDED_CELL_WIDTH,
+        cellHeight: EXPANDED_CELL_HEIGHT,
         gap: TOP_LEVEL_GRID_GAP,
       });
 

@@ -3,6 +3,7 @@ import {
   VueFlow,
   type Node as FlowNode,
   type Edge as FlowEdge,
+  MarkerType,
   type NodeMouseEvent,
   useVueFlow,
 } from "@vue-flow/core";
@@ -267,12 +268,18 @@ const flowEdges = computed<FlowEdge[]>(() => {
         edge.type !== "imports" &&
         edge.from !== selectedId &&
         edge.to !== selectedId;
+      // Label suppressed while `imports` is the only shipped edge type — a
+      // "imports" tag on every edge is pure noise. Restore a label (or a
+      // count badge) once Slice 4 introduces aggregated cross-container
+      // edges of mixed origin.
       return {
         id: edge.id,
         source: edge.from,
         target: edge.to,
-        label: edge.type,
+        type: "smoothstep",
         animated: false,
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#71717a", width: 16, height: 16 },
+        style: { stroke: "#71717a", strokeWidth: 1.5 },
         class: dim ? "opacity-20" : "",
       };
     });
@@ -687,6 +694,10 @@ function shortenPath(value: string, max = 48): string {
   background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
   padding: 0;
   text-align: left;
+  overflow: hidden;
+}
+.wrapper-node.wrapper-expanded.vue-flow__node-default {
+  overflow: auto;
 }
 .wrapper-node.wrapper-collapsed.vue-flow__node-default {
   min-width: 160px;

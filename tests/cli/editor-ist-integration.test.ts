@@ -140,19 +140,31 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsNeighbors).toBe(true);
 
-    // Search sanity check: the header input placeholder and Vue Flow's
-    // camera-fit call must both survive into the JS bundle. A regression
-    // that dropped the search input or the fitView jump would silently
-    // ship an editor that can only be traversed by clicking — this
-    // catches that.
+    // Search sanity check: the header input placeholder AND the
+    // match-highlight class token must both survive into the JS bundle.
+    // Slice 5 removed the fitView jump on Enter (camera stays put; only
+    // the ancestor wrappers auto-expand and the match's file wrapper
+    // pulses once). A regression that dropped the search input or
+    // silently reintroduced fitView would break either the visible input
+    // or the "no camera teleport" invariant — this catches both.
     const anyMentionsSearch = bundles.some((name) => {
       const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
       return (
         content.includes("Search nodes") &&
-        (content.includes("fitView") || content.includes("fit-view"))
+        content.includes("wrapper-highlight")
       );
     });
     expect(anyMentionsSearch).toBe(true);
+
+    // Camera-stability guard: no bundle may still contain a fitView
+    // call. PR #28 removed the click/select-side call; Slice 5 removes
+    // the search-side one. Any reintroduction is a regression against
+    // the "flow layout is the eye's anchor" design decision.
+    const anyBundleCallsFitView = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("fitView(") || content.includes("fit-view(");
+    });
+    expect(anyBundleCallsFitView).toBe(false);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

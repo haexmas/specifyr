@@ -1,6 +1,38 @@
 @import "tailwindcss";
 
 /*
+ * Enable Tailwind v4 `dark:` variant against our `data-theme="dark"` root
+ * attribute (default reacts to `prefers-color-scheme` only).
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Palette override for dark mode. Tailwind v4 defines its palette as CSS
+ * custom properties (`--color-zinc-100`, …). Redefining them under
+ * `[data-theme="dark"]` flips every utility that references them without
+ * touching a single template class. Zinc scale is inverted (light ↔ dark)
+ * so chrome inherited from the original light design keeps working;
+ * `white`, used for dialog / picker card backgrounds, flips to the same
+ * slate mask as `--graph-mask`. Bespoke role/graph tokens defined below
+ * this block override the specific canvas surfaces (`.wrapper-node`,
+ * Vue Flow background) with the Archify palette.
+ */
+[data-theme="dark"] {
+  --color-white: #0f172a;
+  --color-zinc-50: #0f172a;
+  --color-zinc-100: #1e293b;
+  --color-zinc-200: #334155;
+  --color-zinc-300: #475569;
+  --color-zinc-400: #94a3b8;
+  --color-zinc-500: #cbd5e1;
+  --color-zinc-600: #e2e8f0;
+  --color-zinc-700: #e2e8f0;
+  --color-zinc-800: #f1f5f9;
+  --color-zinc-900: #f8fafc;
+  --color-zinc-950: #ffffff;
+}
+
+/*
  * Design tokens — role, graph, and delta variables shared across the editor.
  * Adopts the visual language from plans/005-visual-language-and-diff-views.md
  * Schnitt A verbatim (Archify MIT, © 2025 Cocoon AI, © 2026 tt-a1i;

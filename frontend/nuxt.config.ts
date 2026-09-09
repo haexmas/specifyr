@@ -13,12 +13,13 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: "specifyr editor",
-      // `data-theme` is fixed to `light` on purpose while the chrome (top bar,
-      // sidebars, dialog) still uses hard-coded Tailwind zinc classes. The
-      // full dark palette landed for later Plan 005 slices (Schnitt A tokens,
-      // Schnitt E shadcn top bar); flipping the default before those ship
-      // would leave the chrome unstyled against a dark canvas.
-      htmlAttrs: { lang: "en", "data-theme": "light" },
+      // Dark theme per Plan 005 Schnitt A. The chrome (top bar, sidebars,
+      // dialog) still holds hard-coded Tailwind `zinc-*` classes — those
+      // are flipped automatically by the palette overrides under
+      // `[data-theme="dark"]` in `assets/css/tailwind.css`. When Plan 005
+      // Schnitt E replaces the chrome with shadcn primitives, the overrides
+      // can go away in favour of native shadcn dark tokens.
+      htmlAttrs: { lang: "en", "data-theme": "dark" },
     },
   },
 });

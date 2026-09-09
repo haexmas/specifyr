@@ -529,7 +529,7 @@ function shortenPath(value: string, max = 48): string {
           @select="onExplorerSelect"
         />
       </aside>
-      <div class="min-h-0 flex-1">
+      <div class="min-h-0 flex-1" style="background: var(--graph-bg)">
         <VueFlow
           :nodes="flowNodes"
           :edges="flowEdges"

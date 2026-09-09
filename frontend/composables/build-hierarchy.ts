@@ -171,6 +171,25 @@ export interface FilePathResult {
   fileId: string;
 }
 
+/**
+ * Flatten a hierarchy tree into a lookup from each node id to its
+ * immediate parent id. Top-level entries map to `undefined`. Every id
+ * in the hierarchy is a key exactly once.
+ */
+export function buildParentMap(
+  hierarchy: readonly HierarchyNode[],
+): Map<string, string | undefined> {
+  const map = new Map<string, string | undefined>();
+  const walk = (entries: readonly HierarchyNode[], parentId: string | undefined): void => {
+    for (const entry of entries) {
+      map.set(entry.id, parentId);
+      walk(entry.children, entry.id);
+    }
+  };
+  walk(hierarchy, undefined);
+  return map;
+}
+
 /** Locate the owning file (and its ancestor folder chain) for a hierarchy node id. */
 export function findFilePath(
   hierarchy: readonly HierarchyNode[],

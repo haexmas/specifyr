@@ -12,10 +12,15 @@ import type { Model, Node } from "specifyr";
 import type { Ref } from "vue";
 import {
   buildHierarchy,
+  buildParentMap,
   findFilePath,
   type FilePathResult,
   type HierarchyNode,
 } from "../composables/build-hierarchy.js";
+import {
+  aggregateEdges,
+  resolveVisibleEndpoint,
+} from "../composables/edge-aggregation.js";
 import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
@@ -60,6 +65,9 @@ watch(
 const { fitView } = useVueFlow();
 
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
+const parentOf = computed<Map<string, string | undefined>>(() =>
+  buildParentMap(hierarchy.value),
+);
 const expandedFolderIds = reactive(new Set<string>());
 const expandedCanvasIds = reactive(new Set<string>());
 watch([repoPath, view], () => {
@@ -256,33 +264,35 @@ const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
   const selectedId = selectedNode.value?.id;
   const visibleIds = new Set(flowNodes.value.map((n) => n.id));
-  return data.value.edges
-    // Slice 4: edge aggregation. For now we silently drop any edge whose
-    // endpoint is inside a collapsed wrapper (i.e. not currently rendered
-    // as a node). A future slice will aggregate these into wrapper-level
-    // edges instead of dropping them.
-    .filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to))
-    .map((edge) => {
-      const dim =
-        Boolean(selectedId) &&
-        edge.type !== "imports" &&
-        edge.from !== selectedId &&
-        edge.to !== selectedId;
-      // Label suppressed while `imports` is the only shipped edge type — a
-      // "imports" tag on every edge is pure noise. Restore a label (or a
-      // count badge) once Slice 4 introduces aggregated cross-container
-      // edges of mixed origin.
-      return {
-        id: edge.id,
-        source: edge.from,
-        target: edge.to,
-        type: "smoothstep",
-        animated: false,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#71717a", width: 16, height: 16 },
-        style: { stroke: "#71717a", strokeWidth: 1.5 },
-        class: dim ? "opacity-20" : "",
-      };
-    });
+  const visibleSelectedId = selectedId
+    ? resolveVisibleEndpoint(selectedId, parentOf.value, visibleIds)
+    : undefined;
+  const aggregated = aggregateEdges(data.value.edges, parentOf.value, visibleIds);
+  return aggregated.map((edge) => {
+    // `AggregatedEdge` carries no `type` field on purpose: an aggregate can
+    // collapse edges of mixed kinds and there's no single right answer.
+    // The pre-aggregation code short-circuited `dim` to false for every
+    // `imports` edge — since `imports` is the only shipped edge type today,
+    // no edge was ever dimmed under selection. Dropping that guard means
+    // every non-adjacent aggregate now dims like the symbol nodes do; the
+    // canvas reads more consistently under selection. When mixed edge
+    // types land, extend `AggregatedEdge` with a discriminator (likely
+    // `types: Set<string>`) before restoring per-type dim behavior.
+    const dim =
+      Boolean(visibleSelectedId) &&
+      edge.from !== visibleSelectedId &&
+      edge.to !== visibleSelectedId;
+    return {
+      id: edge.id,
+      source: edge.from,
+      target: edge.to,
+      type: "smoothstep",
+      animated: false,
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#71717a", width: 16, height: 16 },
+      style: { stroke: "#71717a", strokeWidth: 1.5 },
+      class: dim ? "opacity-20" : "",
+    };
+  });
 });
 
 // -- Picker modal -----------------------------------------------------------

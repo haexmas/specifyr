@@ -1,6 +1,11 @@
 import type { Node } from "specifyr";
 import { describe, expect, it } from "vitest";
-import { buildHierarchy, findFilePath } from "../../frontend/composables/build-hierarchy.js";
+import type { HierarchyNode } from "../../frontend/composables/build-hierarchy.js";
+import {
+  buildHierarchy,
+  buildParentMap,
+  findFilePath,
+} from "../../frontend/composables/build-hierarchy.js";
 
 /** Create a module node for hierarchy tests. */
 function makeModule(path: string, id: string): Node {
@@ -245,5 +250,87 @@ describe("findFilePath", () => {
 
   it("returns undefined for an empty hierarchy", () => {
     expect(findFilePath([], "anything")).toBeUndefined();
+  });
+});
+
+/** Count every hierarchy id (folders + files + symbols) recursively. */
+function countAllNodes(entries: readonly HierarchyNode[]): number {
+  let total = 0;
+  for (const entry of entries) {
+    total += 1 + countAllNodes(entry.children);
+  }
+  return total;
+}
+
+describe("buildParentMap", () => {
+  it("returns an empty map for an empty hierarchy", () => {
+    const map = buildParentMap([]);
+    expect(map.size).toBe(0);
+  });
+
+  it("maps a single top-level file id to undefined", () => {
+    const mod = makeModule("readme.ts", "mod-readme");
+    const hierarchy = buildHierarchy([mod]);
+    const map = buildParentMap(hierarchy);
+    expect(map.get("mod-readme")).toBeUndefined();
+    expect(map.has("mod-readme")).toBe(true);
+  });
+
+  it("maps a file nested in a folder to the folder id, and the folder to undefined", () => {
+    const mod = makeModule("src/util.ts", "mod-util");
+    const hierarchy = buildHierarchy([mod]);
+    const map = buildParentMap(hierarchy);
+    expect(map.get("folder:src")).toBeUndefined();
+    expect(map.get("mod-util")).toBe("folder:src");
+  });
+
+  it("maps every intermediate folder to its parent folder for a deeply-nested file", () => {
+    const mod = makeModule("src/extractors/typescript/parser.ts", "mod-parser");
+    const hierarchy = buildHierarchy([mod]);
+    const map = buildParentMap(hierarchy);
+    expect(map.get("folder:src")).toBeUndefined();
+    expect(map.get("folder:src/extractors")).toBe("folder:src");
+    expect(map.get("folder:src/extractors/typescript")).toBe("folder:src/extractors");
+    expect(map.get("mod-parser")).toBe("folder:src/extractors/typescript");
+  });
+
+  it("maps a symbol to its owning file id, not the enclosing folder id", () => {
+    const mod = makeModule("src/service.ts", "mod-service");
+    const symbol = makeSymbol("sym-alpha", "Alpha", "src/service.ts");
+    const hierarchy = buildHierarchy([mod, symbol]);
+    const map = buildParentMap(hierarchy);
+    expect(map.get("sym-alpha")).toBe("mod-service");
+    expect(map.get("mod-service")).toBe("folder:src");
+  });
+
+  it("maps two files in the same folder both to that folder id", () => {
+    const a = makeModule("src/a.ts", "mod-a");
+    const b = makeModule("src/b.ts", "mod-b");
+    const hierarchy = buildHierarchy([a, b]);
+    const map = buildParentMap(hierarchy);
+    expect(map.get("mod-a")).toBe("folder:src");
+    expect(map.get("mod-b")).toBe("folder:src");
+  });
+
+  it("maps a pathless symbol through the synthetic (no folder)/(no file) chain up to undefined", () => {
+    const symbol = makeSymbol("sym-orphan", "Orphan", undefined);
+    const hierarchy = buildHierarchy([symbol]);
+    const noFolder = hierarchy[0];
+    const noFile = noFolder?.children[0];
+    const map = buildParentMap(hierarchy);
+    expect(map.get("sym-orphan")).toBe(noFile?.id);
+    expect(map.get(noFile?.id ?? "")).toBe(noFolder?.id);
+    expect(map.get(noFolder?.id ?? "")).toBeUndefined();
+    expect(map.has(noFolder?.id ?? "")).toBe(true);
+  });
+
+  it("contains every hierarchy id exactly once", () => {
+    const mod = makeModule("src/service.ts", "mod-service");
+    const symbol = makeSymbol("sym-alpha", "Alpha", "src/service.ts");
+    const orphan = makeSymbol("sym-orphan", "Orphan", undefined);
+    const other = makeModule("src/util.ts", "mod-util");
+    const hierarchy = buildHierarchy([mod, symbol, orphan, other]);
+    const map = buildParentMap(hierarchy);
+    expect(map.size).toBe(countAllNodes(hierarchy));
   });
 });

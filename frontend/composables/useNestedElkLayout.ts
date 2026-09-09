@@ -16,6 +16,8 @@ export const HEADER_HEIGHT = 28;
 export const CONTAINER_PADDING = 12;
 /** Gap between top-level wrapper cells in the grid placement. */
 const TOP_LEVEL_GRID_GAP = 24;
+/** Max grid columns until a responsive column pick lands in a later slice. */
+const MAX_TOP_LEVEL_COLUMNS = 4;
 
 export interface NestedLayoutEntry {
   x: number;
@@ -232,7 +234,7 @@ export function useNestedElkLayout({
       }
 
       const topLevelIds = currentHierarchy.map((e) => e.id);
-      const columns = Math.max(1, Math.min(topLevelIds.length, 4));
+      const columns = Math.max(1, Math.min(topLevelIds.length, MAX_TOP_LEVEL_COLUMNS));
       const gridCells = computeGridPlacement(topLevelIds, {
         columns,
         cellWidth: EXPANDED_CELL_WIDTH,

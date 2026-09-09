@@ -156,12 +156,21 @@ function onSearchSubmit(): void {
   // the match) and symbol matches (wrapper is where the symbol lives).
   const owner = findFilePath(hierarchy.value, first.id);
   const highlightId = owner?.fileId ?? first.id;
-  matchHighlightId.value = highlightId;
+  // Repeated Enter on the same match must re-fire the pulse animation.
+  // If we set `matchHighlightId` to the same value it already holds,
+  // Vue skips the re-render, the `wrapper-highlight` class never comes
+  // off, and CSS doesn't restart the keyframe. Clear it first, then
+  // re-apply on the next tick — that guarantees a fresh class toggle
+  // and therefore a fresh animation cycle.
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
-  matchHighlightTimer = setTimeout(() => {
-    matchHighlightId.value = undefined;
-    matchHighlightTimer = undefined;
-  }, 1600);
+  matchHighlightId.value = undefined;
+  void nextTick(() => {
+    matchHighlightId.value = highlightId;
+    matchHighlightTimer = setTimeout(() => {
+      matchHighlightId.value = undefined;
+      matchHighlightTimer = undefined;
+    }, 1600);
+  });
 }
 
 const selectionFilePath = computed<FilePathResult | undefined>(() => {

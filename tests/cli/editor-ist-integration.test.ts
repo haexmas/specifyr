@@ -149,10 +149,7 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     // or the "no camera teleport" invariant — this catches both.
     const anyMentionsSearch = bundles.some((name) => {
       const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return (
-        content.includes("Search nodes") &&
-        content.includes("wrapper-highlight")
-      );
+      return content.includes("Search nodes") && content.includes("wrapper-highlight");
     });
     expect(anyMentionsSearch).toBe(true);
 
@@ -165,10 +162,7 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     // exposes and internally calls `fitView` — the string is
     // unavoidable in shipped JS. The `useVueFlow` import is the entry
     // point user code needs to reach `fitView`, so we forbid that too.
-    const pageSource = readFileSync(
-      resolve(process.cwd(), "frontend/pages/index.vue"),
-      "utf8",
-    );
+    const pageSource = readFileSync(resolve(process.cwd(), "frontend/pages/index.vue"), "utf8");
     expect(pageSource).not.toMatch(/\bfitView\s*\(/);
     expect(pageSource).not.toMatch(/\buseVueFlow\b/);
 

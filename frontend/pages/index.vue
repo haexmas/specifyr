@@ -711,12 +711,11 @@ function shortenPath(value: string, max = 48): string {
   border-radius: 0.5rem;
   border-width: 1px;
   border-color: var(--graph-arrow);
-  /* Use the slightly-lighter `--graph-grid` (slate-800) as base so the
-     wrapper stands out from `--graph-bg` (slate-950) canvas underneath.
-     Text is bumped up to a readable slate-200 — Vue Flow's own default
-     text color is dark and would render as an ink-blob on dark bg. */
+  /* Use the theme-specific `--graph-grid` as the base so the wrapper stands
+     out from the canvas underneath. The semantic foreground token keeps
+     labels readable in both light and dark themes. */
   background: color-mix(in oklab, var(--graph-grid), transparent 25%);
-  color: #e2e8f0;
+  color: hsl(var(--foreground));
   font-weight: 500;
   padding: 0;
   text-align: left;

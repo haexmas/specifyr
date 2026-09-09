@@ -122,7 +122,11 @@ function onNodeClick({ node }: NodeMouseEvent): void {
     else expandedCanvasIds.add(node.id);
     // A real-module file wrapper is also a selectable node; keep that
     // dual behavior — toggle expansion AND set selectedNodeId when the
-    // wrapper is selectable.
+    // wrapper is selectable. No viewport auto-centering: the top-level
+    // flow layout guarantees that expanding a wrapper only pushes right
+    // and down siblings; left/above content never moves, so the user's
+    // eye stays anchored by the layout itself rather than by camera
+    // gymnastics.
     if (node.selectable) selectedNodeId.value = node.id;
     return;
   }
@@ -156,13 +160,11 @@ watch(selectionFilePath, (result) => {
 
 function onExplorerSelect(nodeId: string | undefined): void {
   selectedNodeId.value = nodeId;
-  const fitId = nodeId
-    ? (findFilePath(hierarchy.value, nodeId)?.fileId ?? nodeId)
-    : undefined;
-  pendingFitId.value = fitId;
+  // No fitView here either — the `selectionFilePath` watcher already
+  // auto-expands the ancestor chain on both sides (tree + canvas), so
+  // clicking a file in the tree opens its containers on the canvas.
+  // Camera stays where it was; user pans over if needed.
 }
-
-const pendingFitId = ref<string | undefined>(undefined);
 
 /**
  * Emits three flavours of Vue Flow node from the nested `layout` map:
@@ -245,16 +247,6 @@ const flowNodes = computed<FlowNode[]>(() => {
   return results;
 });
 
-watch(
-  [layoutPending, flowNodes, pendingFitId],
-  ([pending]) => {
-    const fitId = pendingFitId.value;
-    if (pending || !fitId || !flowNodes.value.some((node) => node.id === fitId)) return;
-    pendingFitId.value = undefined;
-    void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
-  },
-  { flush: "post" },
-);
 
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
@@ -293,8 +285,13 @@ const flowEdges = computed<FlowEdge[]>(() => {
       target: edge.to,
       type: "smoothstep",
       animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#71717a", width: 16, height: 16 },
-      style: { stroke: "#71717a", strokeWidth: 1.5 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: "var(--graph-arrow)",
+        width: 16,
+        height: 16,
+      },
+      style: { stroke: "var(--graph-arrow)", strokeWidth: 1.5 },
       class: dim ? "opacity-20" : "",
     };
   });
@@ -408,30 +405,38 @@ function shortenPath(value: string, max = 48): string {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col font-sans">
+  <div class="flex h-screen flex-col bg-background font-sans text-foreground">
     <header
-      class="flex flex-wrap items-center gap-2 border-b border-zinc-300 bg-zinc-100 px-4 py-2 text-sm"
+      class="flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2 text-sm text-foreground"
     >
       <strong>specifyr editor</strong>
       <div
-        class="inline-flex overflow-hidden rounded-md border border-zinc-300"
+        class="inline-flex overflow-hidden rounded-md border border-border"
         role="group"
         aria-label="View source"
       >
         <button
           type="button"
-          class="cursor-pointer border-r border-zinc-300 bg-transparent px-3 py-1 last:border-r-0"
+          class="cursor-pointer border-r border-border px-3 py-1 last:border-r-0"
           style="font: inherit"
-          :class="view === 'soll' ? 'bg-zinc-200 font-semibold' : ''"
+          :class="
+            view === 'soll'
+              ? 'bg-primary font-semibold text-primary-foreground'
+              : 'bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground'
+          "
           @click="view = 'soll'"
         >
           SOLL
         </button>
         <button
           type="button"
-          class="cursor-pointer border-r border-zinc-300 bg-transparent px-3 py-1 last:border-r-0"
+          class="cursor-pointer border-r border-border px-3 py-1 last:border-r-0"
           style="font: inherit"
-          :class="view === 'ist' ? 'bg-zinc-200 font-semibold' : ''"
+          :class="
+            view === 'ist'
+              ? 'bg-primary font-semibold text-primary-foreground'
+              : 'bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground'
+          "
           @click="view = 'ist'"
         >
           IST
@@ -448,54 +453,54 @@ function shortenPath(value: string, max = 48): string {
           v-model="searchQuery"
           type="search"
           placeholder="Search nodes…"
-          class="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none sm:w-64 sm:flex-none"
+          class="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none sm:w-64 sm:flex-none"
         />
         <span
           v-if="searchQuery.trim()"
-          class="ml-2 text-xs text-zinc-500"
+          class="ml-2 text-xs text-muted-foreground"
           aria-live="polite"
         >
           {{ matches.length }} match{{ matches.length === 1 ? "" : "es" }}
         </span>
       </form>
-      <span v-if="repoPath" class="flex min-w-0 items-center gap-1 text-zinc-600">
+      <span v-if="repoPath" class="flex min-w-0 items-center gap-1 text-foreground">
         <span
-          class="max-w-[24rem] truncate rounded bg-zinc-200 px-2 py-0.5 font-mono text-xs"
+          class="max-w-[24rem] truncate rounded bg-secondary px-2 py-0.5 font-mono text-xs text-secondary-foreground"
           :title="repoPath"
         >
           {{ shortenPath(repoPath) }}
         </span>
         <button
           type="button"
-          class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs hover:bg-zinc-50"
+          class="cursor-pointer rounded border border-border bg-background px-2 py-0.5 text-xs text-foreground hover:bg-accent"
           style="font: inherit"
           @click="openPicker"
         >
           Change…
         </button>
       </span>
-      <span v-if="data?.meta" class="min-w-0 break-words text-zinc-600">
+      <span v-if="data?.meta" class="min-w-0 break-words text-muted-foreground">
         · source: {{ data.meta.source }}
         <span v-if="data.meta.generatedAt">· {{ data.meta.generatedAt }}</span>
       </span>
-      <span v-if="layoutPending" class="italic text-zinc-500">· laying out…</span>
+      <span v-if="layoutPending" class="italic text-muted-foreground">· laying out…</span>
     </header>
 
     <div
       v-if="!isReady"
-      class="flex flex-1 items-center justify-center text-zinc-500"
+      class="flex flex-1 items-center justify-center text-muted-foreground"
     >
       Loading…
     </div>
     <div
       v-else-if="!repoPath"
-      class="flex flex-1 items-center justify-center text-zinc-500"
+      class="flex flex-1 items-center justify-center text-muted-foreground"
     >
       Select a repository to get started.
     </div>
     <div
       v-else-if="status === 'pending'"
-      class="flex flex-1 items-center justify-center text-zinc-500"
+      class="flex flex-1 items-center justify-center text-muted-foreground"
     >
       Loading…
     </div>
@@ -507,16 +512,16 @@ function shortenPath(value: string, max = 48): string {
     </div>
     <div
       v-else-if="!data?.nodes?.length"
-      class="flex flex-1 items-center justify-center text-zinc-500"
+      class="flex flex-1 items-center justify-center text-muted-foreground"
     >
       {{ view.toUpperCase() }} is empty — no nodes to display.
     </div>
     <div v-else class="flex min-h-0 flex-1">
       <aside
-        class="w-72 shrink-0 overflow-y-auto border-r border-zinc-300 bg-zinc-50 px-3 py-3 text-sm"
+        class="w-72 shrink-0 overflow-y-auto border-r border-border bg-card px-3 py-3 text-sm"
         aria-label="Explorer"
       >
-        <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Explorer</h2>
+        <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Explorer</h2>
         <ExplorerTree
           :entries="hierarchy"
           :highlighted-file-id="selectionFilePath?.fileId"
@@ -524,7 +529,7 @@ function shortenPath(value: string, max = 48): string {
           @select="onExplorerSelect"
         />
       </aside>
-      <div class="min-h-0 flex-1">
+      <div class="min-h-0 flex-1" style="background: var(--graph-bg)">
         <VueFlow
           :nodes="flowNodes"
           :edges="flowEdges"
@@ -534,56 +539,56 @@ function shortenPath(value: string, max = 48): string {
           @node-click="onNodeClick"
           @pane-click="onPaneClick"
         >
-          <Background />
+          <Background pattern-color="var(--graph-grid)" />
         </VueFlow>
       </div>
       <aside
-        class="w-80 shrink-0 overflow-y-auto border-l border-zinc-300 bg-zinc-50 px-4 py-3 text-sm"
+        class="w-80 shrink-0 overflow-y-auto border-l border-border bg-card px-4 py-3 text-sm"
         aria-label="Node details"
       >
-        <div v-if="!selectedNode" class="text-zinc-500">Nothing selected.</div>
+        <div v-if="!selectedNode" class="text-muted-foreground">Nothing selected.</div>
         <dl
           v-else
           class="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1"
         >
           <template v-for="row in selectedNodeDetails" :key="row.label">
-            <dt class="font-medium text-zinc-500">{{ row.label }}</dt>
-            <dd class="min-w-0 break-words font-mono text-xs text-zinc-800">
+            <dt class="font-medium text-muted-foreground">{{ row.label }}</dt>
+            <dd class="min-w-0 break-words font-mono text-xs text-foreground">
               {{ row.value }}
             </dd>
           </template>
         </dl>
         <section v-if="selectedNode" class="mt-4">
-          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Imports ({{ neighbors.imports.length }})
           </h3>
           <ul v-if="neighbors.imports.length" class="space-y-0.5">
             <li v-for="n in neighbors.imports" :key="n.id">
               <button
                 type="button"
-                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
                 :title="n.name"
                 @click="selectedNodeId = n.id"
               >{{ n.name }}</button>
             </li>
           </ul>
-          <p v-else class="text-xs text-zinc-500">None</p>
+          <p v-else class="text-xs text-muted-foreground">None</p>
         </section>
         <section v-if="selectedNode" class="mt-4">
-          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Imported by ({{ neighbors.importedBy.length }})
           </h3>
           <ul v-if="neighbors.importedBy.length" class="space-y-0.5">
             <li v-for="n in neighbors.importedBy" :key="n.id">
               <button
                 type="button"
-                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-200"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
                 :title="n.name"
                 @click="selectedNodeId = n.id"
               >{{ n.name }}</button>
             </li>
           </ul>
-          <p v-else class="text-xs text-zinc-500">None</p>
+          <p v-else class="text-xs text-muted-foreground">None</p>
         </section>
       </aside>
     </div>
@@ -598,17 +603,17 @@ function shortenPath(value: string, max = 48): string {
       tabindex="-1"
       @keydown.esc="onPickerEsc"
     >
-      <div class="w-[560px] max-w-full rounded-lg bg-white p-4 shadow-xl">
+      <div class="w-[560px] max-w-full rounded-lg bg-popover text-popover-foreground p-4 shadow-xl">
         <div class="mb-3 flex items-center gap-2">
           <h2
             id="repo-picker-title"
-            class="mr-auto text-sm font-semibold text-zinc-700"
+            class="mr-auto text-sm font-semibold text-foreground"
           >
             Select a repository
           </h2>
           <button
             type="button"
-            class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-1 text-xs hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+            class="cursor-pointer rounded border border-border bg-background px-2 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
             style="font: inherit"
             :disabled="!browseData?.parent"
             aria-label="Go to parent directory"
@@ -618,7 +623,7 @@ function shortenPath(value: string, max = 48): string {
           </button>
           <button
             type="button"
-            class="cursor-pointer rounded border border-zinc-300 bg-white px-2 py-1 text-xs hover:bg-zinc-50"
+            class="cursor-pointer rounded border border-border bg-background px-2 py-1 text-xs hover:bg-accent"
             style="font: inherit"
             @click="goHome"
           >
@@ -626,13 +631,13 @@ function shortenPath(value: string, max = 48): string {
           </button>
         </div>
         <div
-          class="mb-2 truncate rounded bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700"
+          class="mb-2 truncate rounded bg-muted px-2 py-1 font-mono text-xs text-foreground"
           :title="browseData?.path ?? ''"
         >
           {{ browseData?.path ?? "Loading…" }}
         </div>
         <div
-          class="mb-3 max-h-[50vh] min-h-[8rem] overflow-y-auto rounded border border-zinc-200"
+          class="mb-3 max-h-[50vh] min-h-[8rem] overflow-y-auto rounded border border-border"
         >
           <p v-if="browseError" class="p-3 text-xs text-red-600">
             Error:
@@ -640,21 +645,21 @@ function shortenPath(value: string, max = 48): string {
           </p>
           <p
             v-else-if="!browseData"
-            class="p-3 text-xs text-zinc-500"
+            class="p-3 text-xs text-muted-foreground"
           >
             Loading…
           </p>
           <p
             v-else-if="browseData.entries.length === 0"
-            class="p-3 text-xs text-zinc-500"
+            class="p-3 text-xs text-muted-foreground"
           >
             No subdirectories.
           </p>
-          <ul v-else class="divide-y divide-zinc-100">
+          <ul v-else class="divide-y divide-border">
             <li v-for="entry in browseData.entries" :key="entry.name">
               <button
                 type="button"
-                class="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-xs text-zinc-800 hover:bg-zinc-100"
+                class="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-xs text-foreground hover:bg-accent"
                 style="font: inherit"
                 @click="drillDown(entry.name)"
               >
@@ -667,7 +672,7 @@ function shortenPath(value: string, max = 48): string {
           <button
             v-if="repoPath"
             type="button"
-            class="cursor-pointer rounded border border-zinc-300 bg-white px-3 py-1 text-xs hover:bg-zinc-50"
+            class="cursor-pointer rounded border border-border bg-background px-3 py-1 text-xs hover:bg-accent"
             style="font: inherit"
             @click="cancelPicker"
           >
@@ -675,7 +680,7 @@ function shortenPath(value: string, max = 48): string {
           </button>
           <button
             type="button"
-            class="cursor-pointer rounded bg-zinc-800 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+            class="cursor-pointer rounded bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
             style="font: inherit"
             :disabled="!browseData?.path"
             @click="selectCurrent"
@@ -705,8 +710,13 @@ function shortenPath(value: string, max = 48): string {
 .wrapper-node.vue-flow__node-default {
   border-radius: 0.5rem;
   border-width: 1px;
-  border-color: rgb(212 212 216); /* zinc-300 */
-  background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
+  border-color: var(--graph-arrow);
+  /* Use the theme-specific `--graph-grid` as the base so the wrapper stands
+     out from the canvas underneath. The semantic foreground token keeps
+     labels readable in both light and dark themes. */
+  background: color-mix(in oklab, var(--graph-grid), transparent 25%);
+  color: hsl(var(--foreground));
+  font-weight: 500;
   padding: 0;
   text-align: left;
 }

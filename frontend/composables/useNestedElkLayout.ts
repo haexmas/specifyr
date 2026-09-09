@@ -2,18 +2,14 @@ import { type Ref, computed, ref, watchEffect } from "vue";
 
 import type { HierarchyNode } from "./build-hierarchy.js";
 import type { AdapterEdge, AdapterNode, SizeOf } from "./elk-adapter.js";
-import { computeGridPlacement } from "./grid-placement.js";
 import { layoutContainer } from "./layout-container.js";
 
 export const BADGE_WIDTH = 160;
 export const BADGE_HEIGHT = 40;
 /**
- * Fixed dimensions reserved for every top-level wrapper grid cell.
- * Chosen generous enough to hold a typical expanded top-level folder
- * (one or two file levels of nesting) without visibly overflowing its
- * neighbor's cell. Wrappers whose content exceeds this still grow to
- * fit — they just visually overlap the reserved gap; siblings' grid
- * positions never shift so the eye keeps its anchor when things open.
+ * Dimensions used as an ELK size hint / fallback for top-level wrappers.
+ * Wrappers grow to fit their children's bottom-up ELK bounding box; ELK
+ * still uses these as minimums when spacing top-level wrappers apart.
  */
 export const EXPANDED_CELL_WIDTH = 900;
 export const EXPANDED_CELL_HEIGHT = 720;
@@ -21,10 +17,54 @@ export const EXPANDED_CELL_HEIGHT = 720;
 export const HEADER_HEIGHT = 28;
 /** Inner padding around scoped ELK children inside an expanded wrapper. */
 export const CONTAINER_PADDING = 12;
-/** Gap between top-level wrapper cells in the grid placement. */
-const TOP_LEVEL_GRID_GAP = 24;
-/** Max grid columns until a responsive column pick lands in a later slice. */
-const MAX_TOP_LEVEL_COLUMNS = 4;
+/** Column count for the top-level flow layout (down-and-right packing). */
+const TOP_LEVEL_COLUMNS = 3;
+/** Gap between top-level cells in the flow layout. */
+const TOP_LEVEL_HGAP = 40;
+const TOP_LEVEL_VGAP = 40;
+/** Origin offset so the top-left wrapper sits away from the canvas edge. */
+const TOP_LEVEL_ORIGIN_X = 40;
+const TOP_LEVEL_ORIGIN_Y = 40;
+
+/**
+ * Row-major flow layout for top-level wrappers. Order is preserved
+ * (buildHierarchy already emits them alphabetically); each row's height
+ * grows to its tallest cell. Guarantees:
+ *
+ * - A wrapper `X` that expands and grows only pushes its right-siblings
+ *   in the same row further right, and only pushes the rows below it
+ *   further down. Wrappers to the left of `X` in the same row and every
+ *   wrapper in earlier rows keep their exact position.
+ * - No wrapper ever moves left or up when the graph grows — matches the
+ *   user's "just flow down-and-right when things expand" mental model.
+ *
+ * ELK is intentionally NOT used at the top level: its `layered`
+ * algorithm rearranges nodes on every edge change, which reads as
+ * visual chaos when users are only drilling into a container.
+ */
+function flowLayoutTopLevel(
+  ids: readonly string[],
+  sizeOf: (id: string) => { width: number; height: number },
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  let cursorY = TOP_LEVEL_ORIGIN_Y;
+  for (let row = 0; row * TOP_LEVEL_COLUMNS < ids.length; row += 1) {
+    let cursorX = TOP_LEVEL_ORIGIN_X;
+    let rowHeight = 0;
+    for (let col = 0; col < TOP_LEVEL_COLUMNS; col += 1) {
+      const idx = row * TOP_LEVEL_COLUMNS + col;
+      if (idx >= ids.length) break;
+      const id = ids[idx];
+      if (id === undefined) continue;
+      const size = sizeOf(id);
+      positions.set(id, { x: cursorX, y: cursorY });
+      cursorX += size.width + TOP_LEVEL_HGAP;
+      if (size.height > rowHeight) rowHeight = size.height;
+    }
+    cursorY += rowHeight + TOP_LEVEL_VGAP;
+  }
+  return positions;
+}
 
 export interface NestedLayoutEntry {
   x: number;
@@ -243,38 +283,33 @@ export function useNestedElkLayout({
         topLevelLayouts.set(entry.id, await layoutNode(entry, currentExpanded, currentEdges));
       }
 
+      // Down-and-right flow layout for the top level: no ELK, no
+      // rearrangement. Growth on expand only pushes right-siblings and
+      // rows-below; left-siblings and earlier rows never move.
       const topLevelIds = currentHierarchy.map((e) => e.id);
-      const columns = Math.max(1, Math.min(topLevelIds.length, MAX_TOP_LEVEL_COLUMNS));
-      // Fixed cell dimensions: expanding a wrapper must never shift its
-      // siblings. A wrapper whose content exceeds the cell just visually
-      // overlaps its neighbour's reserved rectangle — the whole point of
-      // Slice 3 (the reason for the redesign) is that the eye keeps its
-      // anchor when things open and close.
-      const gridCells = computeGridPlacement(topLevelIds, {
-        columns,
-        cellWidth: EXPANDED_CELL_WIDTH,
-        cellHeight: EXPANDED_CELL_HEIGHT,
-        gap: TOP_LEVEL_GRID_GAP,
+      const topLevelPositions = flowLayoutTopLevel(topLevelIds, (id) => {
+        const s = topLevelLayouts.get(id)?.size;
+        return s ?? { width: BADGE_WIDTH, height: BADGE_HEIGHT };
       });
 
       const flat = new Map<string, NestedLayoutEntry>();
       for (const entry of currentHierarchy) {
-        const cell = gridCells.get(entry.id);
+        const pos = topLevelPositions.get(entry.id);
         const nodeLayout = topLevelLayouts.get(entry.id);
-        if (!cell || !nodeLayout) continue;
-        // Top-level entries: grid position, own size from step 2/3, no parentId.
+        if (!pos || !nodeLayout) continue;
+        // Top-level entries: absolute ELK-derived position, own bottom-up size, no parentId.
         flat.set(entry.id, {
-          x: cell.x,
-          y: cell.y,
+          x: pos.x,
+          y: pos.y,
           width: nodeLayout.size.width,
           height: nodeLayout.size.height,
         });
-        // Descendant entries: translate the subtree by the top-level cell origin.
+        // Descendant entries: translate the subtree by the top-level position.
         for (const [descId, descEntry] of nodeLayout.entries) {
           flat.set(descId, {
             ...descEntry,
-            x: descEntry.x + cell.x,
-            y: descEntry.y + cell.y,
+            x: descEntry.x + pos.x,
+            y: descEntry.y + pos.y,
           });
         }
       }

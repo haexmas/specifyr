@@ -8,6 +8,7 @@ specifyr-out/
 graphify-out/cache/
 graphify-out/cost.json
 .coderabbit_reviews/
+.playwright-mcp/
 frontend/.nuxt/
 frontend/.output/
 frontend/node_modules/

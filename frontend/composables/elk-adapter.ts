@@ -43,8 +43,34 @@ export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphI
   return {
     id: "root",
     layoutOptions: {
-      "elk.algorithm": "layered",
+      // `rectpacking` packs nodes into a tight rectangle grid regardless
+      // of edge topology, which is what "aligned columns" looks like.
+      // The trade-off: import direction is no longer visualised via a
+      // top-to-bottom layered flow. For this project's containers
+      // (folders of files) the grid legibility wins over the flow
+      // reading, so `rectpacking` replaces `layered` at the container
+      // level. Edges are still drawn — just as straight-ish lines
+      // between whichever positions the packing chose.
+      "elk.algorithm": "rectpacking",
       "elk.direction": "DOWN",
+      // Very compact spacing. `layered` tends to spread siblings across a
+      // layer to avoid edge crossings; on our (mostly-sparse) file-level
+      // graphs this manifests as huge horizontal gaps. Dropping node/layer
+      // spacing to the minimum ELK still accepts + post-compacting left
+      // packs the row back together without hurting edge routing.
+      "elk.spacing.nodeNode": "12",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "20",
+      "elk.spacing.edgeNode": "8",
+      "elk.spacing.edgeEdge": "6",
+      "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+      // `SIMPLE` placement + `LEFTUP` alignment force every node inside a
+      // layer to align to the same left edge. Default BRANDES_KOEPF gives
+      // each node a "balanced" x-position that can drift right in linear
+      // chains (one-node-per-layer), producing visible zig-zag between
+      // siblings. `LEFTUP` locks them to the leftmost feasible column;
+      // postCompaction is not needed since SIMPLE is already tight.
+      "elk.layered.nodePlacement.strategy": "SIMPLE",
+      "elk.layered.nodePlacement.bk.fixedAlignment": "LEFTUP",
     },
     children: input.nodes.map((n) => {
       const size = sizeOf?.(n.id);

@@ -13,7 +13,9 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: "specifyr editor",
-      htmlAttrs: { lang: "en" },
+      // Keep the light theme as the default; dark remains opt-in through
+      // `[data-theme="dark"]` in `assets/css/tailwind.css`.
+      htmlAttrs: { lang: "en", "data-theme": "light" },
     },
   },
 });

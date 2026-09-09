@@ -81,20 +81,24 @@ export function buildNestedInputKey(
 }
 
 /**
- * Return the bounded outer size for an expanded container given the bounding
- * box its scoped ELK call produced for the children. Content beyond the cap
- * remains available through the wrapper's local overflow scroll.
+ * Return the outer size for an expanded container from the bounding box its
+ * scoped ELK call produced for the children. Wrappers grow to fit — the
+ * cell dimensions (EXPANDED_CELL_WIDTH/HEIGHT) reserve the *minimum* grid
+ * slot but do not clip a bigger wrapper. Clipping would need Vue Flow to
+ * render children inside the parent node's DOM subtree, which it does not
+ * (children are DOM siblings positioned by transform); a CSS `overflow`
+ * cap on the wrapper node therefore only shows a scrollbar that scrolls
+ * nothing while children still render outside its border. Grow-to-fit
+ * keeps the render honest — the top-level grid is what protects sibling
+ * anchoring, not the wrapper's own size.
  */
 function wrapperSizeForContent(contentSize: {
   width: number;
   height: number;
 }): { width: number; height: number } {
   return {
-    width: Math.min(EXPANDED_CELL_WIDTH, contentSize.width + 2 * CONTAINER_PADDING),
-    height: Math.min(
-      EXPANDED_CELL_HEIGHT,
-      contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
-    ),
+    width: contentSize.width + 2 * CONTAINER_PADDING,
+    height: contentSize.height + 2 * CONTAINER_PADDING + HEADER_HEIGHT,
   };
 }
 

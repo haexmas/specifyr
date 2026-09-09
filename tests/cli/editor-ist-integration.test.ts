@@ -173,6 +173,24 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
       return content.includes("Explorer");
     });
     expect(anyMentionsExplorer).toBe(true);
+
+    // Nested canvas sanity check: the wrapper-node CSS class must survive
+    // into both the CSS and JS bundles. A regression that reverted to the
+    // flat canvas layout would silently ship today's disconnected wall of
+    // tiles again — this catches that. Component / composable names (like
+    // useNestedElkLayout) are minified away by Vite, so the assertion
+    // anchors on the class-name literal that is applied to every wrapper.
+    const anyMentionsWrapperCss = cssBundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("wrapper-node");
+    });
+    expect(anyMentionsWrapperCss).toBe(true);
+
+    const anyMentionsWrapperJs = bundles.some((name) => {
+      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
+      return content.includes("wrapper-node") && content.includes("wrapper-expanded");
+    });
+    expect(anyMentionsWrapperJs).toBe(true);
   }, 30000);
 
   it("computes mapped SOLL and IST colors over Vue Flow's default theme", () => {

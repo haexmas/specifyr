@@ -8,6 +8,7 @@ import {
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import type { Model, Node } from "specifyr";
+import type { Ref } from "vue";
 import {
   buildHierarchy,
   findFilePath,
@@ -18,6 +19,7 @@ import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
 import { matchNodes } from "../composables/search-nodes.js";
+import { useNestedElkLayout } from "../composables/useNestedElkLayout.js";
 import { useRepoPath } from "../composables/use-repo-path.js";
 import type { BrowseResult } from "../server/utils/browse.js";
 
@@ -56,18 +58,23 @@ watch(
 
 const { fitView } = useVueFlow();
 
-const layoutInput = computed(() => ({
-  nodes: data.value?.nodes?.map((n) => ({ id: n.id, label: n.name })) ?? [],
-  edges: data.value?.edges?.map((e) => ({ id: e.id, from: e.from, to: e.to })) ?? [],
-}));
-const { positions, pending: layoutPending } = useElkLayout({
-  nodes: computed(() => layoutInput.value.nodes),
-  edges: computed(() => layoutInput.value.edges),
-});
-
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
 const expandedFolderIds = reactive(new Set<string>());
-watch([repoPath, view], () => expandedFolderIds.clear());
+const expandedCanvasIds = reactive(new Set<string>());
+watch([repoPath, view], () => {
+  expandedFolderIds.clear();
+  expandedCanvasIds.clear();
+});
+
+const layoutEdges = computed(() =>
+  data.value?.edges?.map((e) => ({ id: e.id, from: e.from, to: e.to })) ?? [],
+);
+
+const { layout, pending: layoutPending } = useNestedElkLayout({
+  hierarchy,
+  expandedIds: computed(() => expandedCanvasIds) as Ref<Set<string>>,
+  edges: layoutEdges,
+});
 
 const selectedNodeId = ref<string | undefined>(undefined);
 
@@ -104,6 +111,15 @@ const matchIds = computed<Set<string>>(
 );
 
 function onNodeClick({ node }: NodeMouseEvent): void {
+  if (node.data?.kind === "folder" || node.data?.kind === "file") {
+    if (expandedCanvasIds.has(node.id)) expandedCanvasIds.delete(node.id);
+    else expandedCanvasIds.add(node.id);
+    // A real-module file wrapper is also a selectable node; keep that
+    // dual behavior — toggle expansion AND set selectedNodeId when the
+    // wrapper is selectable.
+    if (node.selectable) selectedNodeId.value = node.id;
+    return;
+  }
   selectedNodeId.value = node.id;
 }
 
@@ -124,56 +140,142 @@ const selectionFilePath = computed<FilePathResult | undefined>(() => {
 });
 watch(selectionFilePath, (result) => {
   if (!result) return;
-  for (const folderId of result.folderIds) expandedFolderIds.add(folderId);
+  for (const folderId of result.folderIds) {
+    expandedFolderIds.add(folderId);
+    expandedCanvasIds.add(folderId);
+  }
+  // Note: the file itself stays collapsed on the canvas per design doc.
+  // Clicking the wrapper on the canvas is what opens the file's contents.
 });
 
 function onExplorerSelect(nodeId: string | undefined): void {
   selectedNodeId.value = nodeId;
-  if (nodeId) void fitView({ nodes: [nodeId], duration: 400, padding: 0.3 });
+  const fitId = nodeId
+    ? (findFilePath(hierarchy.value, nodeId)?.fileId ?? nodeId)
+    : undefined;
+  pendingFitId.value = fitId;
 }
 
-/** Transforms SOLL nodes into Vue Flow node objects with layout positions. */
+const pendingFitId = ref<string | undefined>(undefined);
+
+/**
+ * Emits three flavours of Vue Flow node from the nested `layout` map:
+ * 1. Wrapper nodes for every folder/file entry present in the layout.
+ * 2. Symbol leaf nodes for every symbol entry present in the layout.
+ * 3. Symbols whose parent wrapper is collapsed are absent from the layout
+ *    map, so they simply do not render.
+ *
+ * The array is emitted in hierarchy pre-order (parent before children) so
+ * Vue Flow can resolve every `parentNode` reference — a violation triggers
+ * Vue Flow's "parent node ... not found" console warning.
+ */
 const flowNodes = computed<FlowNode[]>(() => {
-  if (!data.value?.nodes) return [];
+  const layoutMap = layout.value;
+  if (!hierarchy.value.length || layoutMap.size === 0) return [];
   const selectedId = selectedNode.value?.id;
   const hasSelection = Boolean(selectedId);
   const hasSearch = searchQuery.value.trim().length > 0;
-  return data.value.nodes.map((node) => {
-    const dimBySelection = hasSelection && !neighborIds.value.has(node.id);
-    const dimBySearch = hasSearch && !matchIds.value.has(node.id);
-    const dim = dimBySelection || dimBySearch;
-    const classes = ["soll-node", nodeTypeClasses(node.type)];
-    if (dim) classes.push("opacity-30");
-    return {
-      id: node.id,
-      type: "default",
-      position: positions.value.get(node.id) ?? { x: 0, y: 0 },
-      data: { label: `${node.name}\n(${node.type})` },
-      class: classes.join(" "),
-      selected: node.id === selectedId,
-    };
-  });
+
+  const results: FlowNode[] = [];
+
+  function walk(entries: readonly HierarchyNode[]): void {
+    for (const entry of entries) {
+      const entryLayout = layoutMap.get(entry.id);
+      if (!entryLayout) continue;
+      const parentLayout = entryLayout.parentId
+        ? layoutMap.get(entryLayout.parentId)
+        : undefined;
+      const position = parentLayout
+        ? { x: entryLayout.x - parentLayout.x, y: entryLayout.y - parentLayout.y }
+        : { x: entryLayout.x, y: entryLayout.y };
+      if (entry.kind === "folder" || entry.kind === "file") {
+        const expanded = expandedCanvasIds.has(entry.id) && entry.children.length > 0;
+        // Intermediate variable (inferred literal type) preserves the
+        // pass-through of Vue Flow's runtime-only `selected` field without
+        // tripping TypeScript's excess-property check on object literals.
+        const wrapperNode = {
+          id: entry.id,
+          type: "default",
+          position,
+          data: { label: entry.label, kind: entry.kind, expanded },
+          style: {
+            width: `${entryLayout.width}px`,
+            height: `${entryLayout.height}px`,
+          },
+          class: `wrapper-node ${expanded ? "wrapper-expanded" : "wrapper-collapsed"}`,
+          selectable: entry.selectable,
+          parentNode: entryLayout.parentId ?? undefined,
+          extent: entryLayout.parentId ? ("parent" as const) : undefined,
+          selected: entry.id === selectedId,
+        };
+        results.push(wrapperNode);
+        walk(entry.children);
+      } else {
+        // symbol leaf — only reachable when its wrapper chain is expanded
+        // (otherwise the composable does not include it in the layout map).
+        const node = entry.node;
+        if (!node) continue;
+        const dimBySelection = hasSelection && !neighborIds.value.has(node.id);
+        const dimBySearch = hasSearch && !matchIds.value.has(node.id);
+        const dim = dimBySelection || dimBySearch;
+        const classes = ["soll-node", nodeTypeClasses(node.type)];
+        if (dim) classes.push("opacity-30");
+        const symbolNode = {
+          id: node.id,
+          type: "default",
+          position,
+          data: { label: `${node.name}\n(${node.type})` },
+          class: classes.join(" "),
+          selected: node.id === selectedId,
+          parentNode: entryLayout.parentId ?? undefined,
+          extent: entryLayout.parentId ? ("parent" as const) : undefined,
+        };
+        results.push(symbolNode);
+      }
+    }
+  }
+
+  walk(hierarchy.value);
+  return results;
 });
+
+watch(
+  [layoutPending, flowNodes, pendingFitId],
+  ([pending]) => {
+    const fitId = pendingFitId.value;
+    if (pending || !fitId || !flowNodes.value.some((node) => node.id === fitId)) return;
+    pendingFitId.value = undefined;
+    void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
+  },
+  { flush: "post" },
+);
 
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
   const selectedId = selectedNode.value?.id;
-  return data.value.edges.map((edge) => {
-    const dim =
-      Boolean(selectedId) &&
-      edge.type !== "imports" &&
-      edge.from !== selectedId &&
-      edge.to !== selectedId;
-    return {
-      id: edge.id,
-      source: edge.from,
-      target: edge.to,
-      label: edge.type,
-      animated: false,
-      class: dim ? "opacity-20" : "",
-    };
-  });
+  const visibleIds = new Set(flowNodes.value.map((n) => n.id));
+  return data.value.edges
+    // Slice 4: edge aggregation. For now we silently drop any edge whose
+    // endpoint is inside a collapsed wrapper (i.e. not currently rendered
+    // as a node). A future slice will aggregate these into wrapper-level
+    // edges instead of dropping them.
+    .filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to))
+    .map((edge) => {
+      const dim =
+        Boolean(selectedId) &&
+        edge.type !== "imports" &&
+        edge.from !== selectedId &&
+        edge.to !== selectedId;
+      return {
+        id: edge.id,
+        source: edge.from,
+        target: edge.to,
+        label: edge.type,
+        animated: false,
+        class: dim ? "opacity-20" : "",
+      };
+    });
 });
 
 // -- Picker modal -----------------------------------------------------------
@@ -577,5 +679,19 @@ function shortenPath(value: string, max = 48): string {
   font-size: 0.75rem;
   white-space: pre-line;
   min-width: 140px;
+}
+.wrapper-node.vue-flow__node-default {
+  border-radius: 0.5rem;
+  border-width: 1px;
+  border-color: rgb(212 212 216); /* zinc-300 */
+  background: rgba(244, 244, 245, 0.6); /* zinc-100 @ 60% */
+  padding: 0;
+  text-align: left;
+}
+.wrapper-node.wrapper-collapsed.vue-flow__node-default {
+  min-width: 160px;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
 }
 </style>

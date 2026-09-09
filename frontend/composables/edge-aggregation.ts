@@ -28,6 +28,29 @@ export function resolveVisibleEndpoint(
   return undefined;
 }
 
+/**
+ * Every visible id along `nodeId`'s ancestor chain (including `nodeId`
+ * itself when visible). The full chain matters for selection-adjacency
+ * checks against aggregated edges: an edge landing at any ancestor of
+ * the selection is "adjacent to" that selection — otherwise selecting
+ * a deep symbol dims every cross-wrapper edge above it, because the
+ * aggregate lives on an ancestor wrapper the selection is inside.
+ */
+export function visibleAncestors(
+  nodeId: string,
+  parentOf: ReadonlyMap<string, string | undefined>,
+  visibleIds: ReadonlySet<string>,
+): Set<string> {
+  const result = new Set<string>();
+  if (!parentOf.has(nodeId)) return result;
+  let current: string | undefined = nodeId;
+  while (current !== undefined) {
+    if (visibleIds.has(current)) result.add(current);
+    current = parentOf.get(current);
+  }
+  return result;
+}
+
 // A null byte can never appear in a real node id, so it's a safe separator
 // for the (from, to) dedup key without risk of collision with any id content.
 const KEY_SEP = "\0";
@@ -41,14 +64,44 @@ interface Bucket {
   count: number;
 }
 
+/** Bottom-up ancestor chain (nodeId, parent, grandparent, ..., top-level). */
+function ancestorChain(
+  nodeId: string,
+  parentOf: ReadonlyMap<string, string | undefined>,
+): string[] {
+  if (!parentOf.has(nodeId)) return [];
+  const chain: string[] = [];
+  let current: string | undefined = nodeId;
+  while (current !== undefined) {
+    chain.push(current);
+    current = parentOf.get(current);
+  }
+  return chain;
+}
+
 /**
- * Resolve every real edge's endpoints to their visible ancestors, drop
- * self-loops (both endpoints resolve to the same visible container),
- * dedupe by resulting `(from, to)` pair. Purely a rendering derivative —
- * the raw `edges` array is untouched.
+ * Aggregate raw edges to the level where source and target *diverge*
+ * in the hierarchy: for each edge, find the two endpoints' lowest
+ * common ancestor, then take the immediate child of that LCA on each
+ * side. This keeps just enough resolution to answer "which subtree
+ * of the shared parent connects to which sibling subtree" without
+ * fanning back out into a bundle of parallel arrows when the caller
+ * has drilled multiple levels deep on both sides.
  *
- * An edge whose either endpoint is unknown (no entry in `parentOf`, so
- * `resolveVisibleEndpoint` returns undefined) is silently dropped.
+ * - Different top-level subtrees (no common ancestor): aggregate to
+ *   the two top-level wrappers. Expanding a subfolder inside one of
+ *   them never adds more cross-top-level arrows — they all collapse
+ *   into the same top-level pair.
+ * - Same top-level with a shared inner ancestor: aggregate to that
+ *   ancestor's two children whose subtrees own the endpoints. A pair
+ *   of siblings inside the same expanded folder stays as one arrow
+ *   between them (both endpoints are the "children of LCA").
+ *
+ * If the derived endpoints are not themselves visible (e.g. the LCA's
+ * child is inside a collapsed subtree), they are walked up to the
+ * nearest visible ancestor. Same-endpoint results are dropped as
+ * self-loops. Purely a rendering derivative — the raw `edges` array
+ * is untouched.
  */
 export function aggregateEdges(
   edges: readonly Edge[],
@@ -57,10 +110,33 @@ export function aggregateEdges(
 ): AggregatedEdge[] {
   const buckets = new Map<string, Bucket>();
   for (const edge of edges) {
-    const from = resolveVisibleEndpoint(edge.from, parentOf, visibleIds);
-    const to = resolveVisibleEndpoint(edge.to, parentOf, visibleIds);
+    const fromChain = ancestorChain(edge.from, parentOf);
+    const toChain = ancestorChain(edge.to, parentOf);
+    if (fromChain.length === 0 || toChain.length === 0) continue;
+
+    // Walk both chains from the top-level end inward and stop at the
+    // last matching ancestor — that is the LCA. The next slot on each
+    // reversed chain (or the endpoint itself if the endpoint IS the
+    // LCA) is the "child of LCA" we want as the aggregation endpoint.
+    const fromRev = [...fromChain].reverse();
+    const toRev = [...toChain].reverse();
+    let lcaIdx = -1;
+    const upper = Math.min(fromRev.length, toRev.length);
+    for (let i = 0; i < upper; i += 1) {
+      if (fromRev[i] === toRev[i]) lcaIdx = i;
+      else break;
+    }
+    const fromKey = fromRev[lcaIdx + 1] ?? edge.from;
+    const toKey = toRev[lcaIdx + 1] ?? edge.to;
+
+    // Clamp each key to the nearest visible ancestor so a "child of
+    // LCA" that itself sits inside a collapsed subtree resolves upward
+    // to the visible wrapper the user actually sees on the canvas.
+    const from = resolveVisibleEndpoint(fromKey, parentOf, visibleIds);
+    const to = resolveVisibleEndpoint(toKey, parentOf, visibleIds);
     if (from === undefined || to === undefined) continue;
     if (from === to) continue;
+
     const key = `${from}${KEY_SEP}${to}`;
     const existing = buckets.get(key);
     if (existing) {

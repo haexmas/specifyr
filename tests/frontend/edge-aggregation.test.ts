@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateEdges,
   resolveVisibleEndpoint,
+  visibleAncestors,
 } from "../../frontend/composables/edge-aggregation.js";
 
 /** Build a parent map from `{ child: parent | undefined }` pairs. */
@@ -184,5 +185,141 @@ describe("aggregateEdges", () => {
     const edges = [makeEdge("raw-first", "src", "dst"), makeEdge("raw-second", "src", "dst")];
     const result = aggregateEdges(edges, parents, visible("src", "dst"));
     expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
+  });
+
+  it("bundles N visible siblings targeting the same visible top-level into one wrapper→top edge", () => {
+    // The motivating case: expand a folder, its four files all import
+    // something from a still-collapsed sibling folder. Under the old
+    // per-endpoint rule this would render as four parallel arrows to the
+    // same target — the whole point of wrapper aggregation is that the
+    // four collapse to one folder→target edge with count=4.
+    const parents = parentMap({
+      utils: undefined,
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+      "utils/c.ts": "utils",
+      "utils/d.ts": "utils",
+      src: undefined,
+    });
+    const edges = [
+      makeEdge("e1", "utils/a.ts", "src"),
+      makeEdge("e2", "utils/b.ts", "src"),
+      makeEdge("e3", "utils/c.ts", "src"),
+      makeEdge("e4", "utils/d.ts", "src"),
+    ];
+    const visibleIds = visible(
+      "utils",
+      "utils/a.ts",
+      "utils/b.ts",
+      "utils/c.ts",
+      "utils/d.ts",
+      "src",
+    );
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:utils->src", from: "utils", to: "src", count: 4 }]);
+  });
+
+  it("preserves raw endpoints for an edge between two visible siblings in the same expanded wrapper", () => {
+    // Counterpart to the bundling rule: expanding a folder to inspect
+    // its internal wiring must still show individual file→file arrows
+    // between its own children — otherwise expansion is pointless.
+    const parents = parentMap({
+      utils: undefined,
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+    });
+    const edges = [makeEdge("e1", "utils/a.ts", "utils/b.ts")];
+    const visibleIds = visible("utils", "utils/a.ts", "utils/b.ts");
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "e1", from: "utils/a.ts", to: "utils/b.ts", count: 1 }]);
+  });
+
+  it("aggregates across deeply nested wrappers to the top-level pair when they share no visible ancestor", () => {
+    // LCA rule: expanding `frontend` and `composables` and `utils`
+    // must not re-fan cross-top-level edges into utils-level arrows —
+    // every `utils/*.ts → src` collapses to a single `frontend → src`
+    // no matter how deep the drill on the source side is.
+    const parents = parentMap({
+      frontend: undefined,
+      composables: "frontend",
+      utils: "composables",
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+      src: undefined,
+    });
+    const edges = [makeEdge("e1", "utils/a.ts", "src"), makeEdge("e2", "utils/b.ts", "src")];
+    const visibleIds = visible(
+      "frontend",
+      "composables",
+      "utils",
+      "utils/a.ts",
+      "utils/b.ts",
+      "src",
+    );
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:frontend->src", from: "frontend", to: "src", count: 2 }]);
+  });
+
+  it("aggregates to the children of a shared visible ancestor when both endpoints live under it", () => {
+    // LCA rule inside a shared top-level: edges between siblings of
+    // an expanded parent land at that parent's own child level, not
+    // at the parent itself and not at leaf granularity.
+    const parents = parentMap({
+      src: undefined,
+      cli: "src",
+      "cli/foo.ts": "cli",
+      core: "src",
+      "core/bar.ts": "core",
+    });
+    const edges = [makeEdge("e1", "cli/foo.ts", "core/bar.ts")];
+    const visibleIds = visible("src", "cli", "core", "cli/foo.ts", "core/bar.ts");
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:cli->core", from: "cli", to: "core", count: 1 }]);
+  });
+});
+
+describe("visibleAncestors", () => {
+  it("returns just the id itself for a top-level visible id", () => {
+    const parents = parentMap({ root: undefined });
+    expect(visibleAncestors("root", parents, visible("root"))).toEqual(new Set(["root"]));
+  });
+
+  it("returns every visible id along the ancestor chain including the node itself", () => {
+    const parents = parentMap({
+      frontend: undefined,
+      composables: "frontend",
+      "useElkLayout.ts": "composables",
+      UseElkLayoutResult: "useElkLayout.ts",
+    });
+    const visibleIds = visible("frontend", "composables", "useElkLayout.ts", "UseElkLayoutResult");
+    expect(visibleAncestors("UseElkLayoutResult", parents, visibleIds)).toEqual(
+      new Set(["UseElkLayoutResult", "composables", "frontend", "useElkLayout.ts"]),
+    );
+  });
+
+  it("skips hidden ancestors in the chain but includes the visible ones above them", () => {
+    const parents = parentMap({
+      top: undefined,
+      mid: "top",
+      leaf: "mid",
+    });
+    // `mid` is hidden — but `top` (still visible) and `leaf` (still visible) count.
+    expect(visibleAncestors("leaf", parents, visible("top", "leaf"))).toEqual(
+      new Set(["top", "leaf"]),
+    );
+  });
+
+  it("returns an empty set when the id is unknown to parentOf", () => {
+    const parents = parentMap({ root: undefined });
+    expect(visibleAncestors("ghost", parents, visible("root"))).toEqual(new Set());
+  });
+
+  it("returns an empty set when no ancestor along the chain is visible", () => {
+    const parents = parentMap({
+      top: undefined,
+      mid: "top",
+      leaf: "mid",
+    });
+    expect(visibleAncestors("leaf", parents, visible())).toEqual(new Set());
   });
 });

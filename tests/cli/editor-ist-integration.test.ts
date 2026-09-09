@@ -156,15 +156,21 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsSearch).toBe(true);
 
-    // Camera-stability guard: no bundle may still contain a fitView
-    // call. PR #28 removed the click/select-side call; Slice 5 removes
-    // the search-side one. Any reintroduction is a regression against
-    // the "flow layout is the eye's anchor" design decision.
-    const anyBundleCallsFitView = bundles.some((name) => {
-      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return content.includes("fitView(") || content.includes("fit-view(");
-    });
-    expect(anyBundleCallsFitView).toBe(false);
+    // Camera-stability guard: the editor page must not itself call
+    // fitView any more. PR #28 removed the click/select-side call;
+    // Slice 5 removed the search-side one. Any reintroduction is a
+    // regression against the "flow layout is the eye's anchor" design
+    // decision. Checked at the source level rather than the bundle,
+    // because Vue Flow's own core (which we still bundle) legitimately
+    // exposes and internally calls `fitView` — the string is
+    // unavoidable in shipped JS. The `useVueFlow` import is the entry
+    // point user code needs to reach `fitView`, so we forbid that too.
+    const pageSource = readFileSync(
+      resolve(process.cwd(), "frontend/pages/index.vue"),
+      "utf8",
+    );
+    expect(pageSource).not.toMatch(/\bfitView\s*\(/);
+    expect(pageSource).not.toMatch(/\buseVueFlow\b/);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

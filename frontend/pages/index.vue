@@ -405,9 +405,9 @@ function shortenPath(value: string, max = 48): string {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col font-sans">
+  <div class="flex h-screen flex-col bg-background font-sans text-foreground">
     <header
-      class="flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2 text-sm"
+      class="flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2 text-sm text-foreground"
     >
       <strong>specifyr editor</strong>
       <div
@@ -417,18 +417,18 @@ function shortenPath(value: string, max = 48): string {
       >
         <button
           type="button"
-          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 last:border-r-0"
+          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 text-foreground last:border-r-0 hover:bg-accent"
           style="font: inherit"
-          :class="view === 'soll' ? 'bg-accent font-semibold' : ''"
+          :class="view === 'soll' ? 'bg-primary font-semibold text-primary-foreground' : ''"
           @click="view = 'soll'"
         >
           SOLL
         </button>
         <button
           type="button"
-          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 last:border-r-0"
+          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 text-foreground last:border-r-0 hover:bg-accent"
           style="font: inherit"
-          :class="view === 'ist' ? 'bg-accent font-semibold' : ''"
+          :class="view === 'ist' ? 'bg-primary font-semibold text-primary-foreground' : ''"
           @click="view = 'ist'"
         >
           IST
@@ -455,16 +455,16 @@ function shortenPath(value: string, max = 48): string {
           {{ matches.length }} match{{ matches.length === 1 ? "" : "es" }}
         </span>
       </form>
-      <span v-if="repoPath" class="flex min-w-0 items-center gap-1 text-muted-foreground">
+      <span v-if="repoPath" class="flex min-w-0 items-center gap-1 text-foreground">
         <span
-          class="max-w-[24rem] truncate rounded bg-secondary px-2 py-0.5 font-mono text-xs"
+          class="max-w-[24rem] truncate rounded bg-secondary px-2 py-0.5 font-mono text-xs text-secondary-foreground"
           :title="repoPath"
         >
           {{ shortenPath(repoPath) }}
         </span>
         <button
           type="button"
-          class="cursor-pointer rounded border border-border bg-background px-2 py-0.5 text-xs hover:bg-accent"
+          class="cursor-pointer rounded border border-border bg-background px-2 py-0.5 text-xs text-foreground hover:bg-accent"
           style="font: inherit"
           @click="openPicker"
         >

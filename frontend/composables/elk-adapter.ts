@@ -43,7 +43,15 @@ export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphI
   return {
     id: "root",
     layoutOptions: {
-      "elk.algorithm": "layered",
+      // `rectpacking` packs nodes into a tight rectangle grid regardless
+      // of edge topology, which is what "aligned columns" looks like.
+      // The trade-off: import direction is no longer visualised via a
+      // top-to-bottom layered flow. For this project's containers
+      // (folders of files) the grid legibility wins over the flow
+      // reading, so `rectpacking` replaces `layered` at the container
+      // level. Edges are still drawn — just as straight-ish lines
+      // between whichever positions the packing chose.
+      "elk.algorithm": "rectpacking",
       "elk.direction": "DOWN",
       // Very compact spacing. `layered` tends to spread siblings across a
       // layer to avoid edge crossings; on our (mostly-sparse) file-level

@@ -371,7 +371,7 @@ git commit -m "Guard Explorer pane in bundle"
 
 **Step 1:** Under `## Status`, add:
 
-```
+```text
 Slice Explorer Tree (current): a left-hand folder/file tree navigates the current view; selecting a file there or a node on the canvas keeps both in sync — the tree always shows where the current selection lives. Second slice of the Explorer/Canvas/Details redesign (docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md). ✅
 ```
 

@@ -42,9 +42,7 @@ interface ElkChild {
  * layout (via `useElkLayout`) and the per-container nested layout (via
  * `useNestedElkLayout`).
  */
-export async function layoutContainer(
-  input: ContainerLayoutInput,
-): Promise<ContainerLayoutOutput> {
+export async function layoutContainer(input: ContainerLayoutInput): Promise<ContainerLayoutOutput> {
   const elk = new ELK();
   const graph = modelToElkGraph({ nodes: input.nodes, edges: input.edges }, input.sizeOf);
   // elkjs's ElkNode/ElkExtendedEdge types are structurally compatible with our

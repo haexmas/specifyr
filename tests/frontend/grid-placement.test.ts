@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  computeGridPlacement,
   type GridPlacementOptions,
+  computeGridPlacement,
 } from "../../frontend/composables/grid-placement.js";
 
 const OPTS: GridPlacementOptions = {

@@ -1,19 +1,16 @@
 import { type Ref, computed, ref, watchEffect } from "vue";
 
-import type { HierarchyNode } from "./build-hierarchy.js";
+import { type HierarchyNode, buildParentMap } from "./build-hierarchy.js";
+import { aggregateEdges } from "./edge-aggregation.js";
 import type { AdapterEdge, AdapterNode, SizeOf } from "./elk-adapter.js";
-import { computeGridPlacement } from "./grid-placement.js";
 import { layoutContainer } from "./layout-container.js";
 
 export const BADGE_WIDTH = 160;
 export const BADGE_HEIGHT = 40;
 /**
- * Fixed dimensions reserved for every top-level wrapper grid cell.
- * Chosen generous enough to hold a typical expanded top-level folder
- * (one or two file levels of nesting) without visibly overflowing its
- * neighbor's cell. Wrappers whose content exceeds this still grow to
- * fit — they just visually overlap the reserved gap; siblings' grid
- * positions never shift so the eye keeps its anchor when things open.
+ * Dimensions used as an ELK size hint / fallback for top-level wrappers.
+ * Wrappers grow to fit their children's bottom-up ELK bounding box; ELK
+ * still uses these as minimums when spacing top-level wrappers apart.
  */
 export const EXPANDED_CELL_WIDTH = 900;
 export const EXPANDED_CELL_HEIGHT = 720;
@@ -21,10 +18,6 @@ export const EXPANDED_CELL_HEIGHT = 720;
 export const HEADER_HEIGHT = 28;
 /** Inner padding around scoped ELK children inside an expanded wrapper. */
 export const CONTAINER_PADDING = 12;
-/** Gap between top-level wrapper cells in the grid placement. */
-const TOP_LEVEL_GRID_GAP = 24;
-/** Max grid columns until a responsive column pick lands in a later slice. */
-const MAX_TOP_LEVEL_COLUMNS = 4;
 
 export interface NestedLayoutEntry {
   x: number;
@@ -243,38 +236,56 @@ export function useNestedElkLayout({
         topLevelLayouts.set(entry.id, await layoutNode(entry, currentExpanded, currentEdges));
       }
 
+      // Top-level positions come from ELK too — one more scoped call over
+      // the top-level wrappers themselves, using aggregated cross-top-level
+      // edges as ELK's edge input. Layout re-runs on every expand/collapse
+      // and can rearrange top-levels to keep related wrappers close and to
+      // avoid overlap; the calling page keeps the *focal* node steady on
+      // screen by translating the Vue Flow viewport after each pass.
       const topLevelIds = currentHierarchy.map((e) => e.id);
-      const columns = Math.max(1, Math.min(topLevelIds.length, MAX_TOP_LEVEL_COLUMNS));
-      // Fixed cell dimensions: expanding a wrapper must never shift its
-      // siblings. A wrapper whose content exceeds the cell just visually
-      // overlaps its neighbour's reserved rectangle — the whole point of
-      // Slice 3 (the reason for the redesign) is that the eye keeps its
-      // anchor when things open and close.
-      const gridCells = computeGridPlacement(topLevelIds, {
-        columns,
-        cellWidth: EXPANDED_CELL_WIDTH,
-        cellHeight: EXPANDED_CELL_HEIGHT,
-        gap: TOP_LEVEL_GRID_GAP,
+      const topLevelIdSet = new Set(topLevelIds);
+      const parentOf = buildParentMap(currentHierarchy);
+      const topLevelAgg = aggregateEdges(
+        // aggregateEdges accepts the raw `Edge` shape (with a `type`);
+        // synthesize the type field since layout only cares about endpoints.
+        currentEdges.map((e) => ({ ...e, type: "imports" })),
+        parentOf,
+        topLevelIdSet,
+      );
+      const topLevelAdapterEdges: AdapterEdge[] = topLevelAgg.map((e) => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+      }));
+      const topLevelAdapterNodes: AdapterNode[] = currentHierarchy.map((e) => ({
+        id: e.id,
+        label: e.label,
+      }));
+      const topLevelSizeOf: SizeOf = (id) => topLevelLayouts.get(id)?.size;
+      const { positions: topLevelPositions } = await layoutContainer({
+        nodes: topLevelAdapterNodes,
+        edges: topLevelAdapterEdges,
+        sizeOf: topLevelSizeOf,
       });
 
       const flat = new Map<string, NestedLayoutEntry>();
       for (const entry of currentHierarchy) {
-        const cell = gridCells.get(entry.id);
+        const pos = topLevelPositions.get(entry.id);
         const nodeLayout = topLevelLayouts.get(entry.id);
-        if (!cell || !nodeLayout) continue;
-        // Top-level entries: grid position, own size from step 2/3, no parentId.
+        if (!pos || !nodeLayout) continue;
+        // Top-level entries: absolute ELK-derived position, own bottom-up size, no parentId.
         flat.set(entry.id, {
-          x: cell.x,
-          y: cell.y,
+          x: pos.x,
+          y: pos.y,
           width: nodeLayout.size.width,
           height: nodeLayout.size.height,
         });
-        // Descendant entries: translate the subtree by the top-level cell origin.
+        // Descendant entries: translate the subtree by the top-level position.
         for (const [descId, descEntry] of nodeLayout.entries) {
           flat.set(descId, {
             ...descEntry,
-            x: descEntry.x + cell.x,
-            y: descEntry.y + cell.y,
+            x: descEntry.x + pos.x,
+            y: descEntry.y + pos.y,
           });
         }
       }

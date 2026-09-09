@@ -45,6 +45,12 @@ export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphI
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
+      // Bump default node spacing so expanded wrappers rendered as ELK
+      // children do not visually overlap their neighbours or spill into
+      // adjacent lanes when the layered algorithm packs them tightly.
+      "elk.spacing.nodeNode": "48",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "72",
+      "elk.padding": "[top=24,left=24,bottom=24,right=24]",
     },
     children: input.nodes.map((n) => {
       const size = sizeOf?.(n.id);

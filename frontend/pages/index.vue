@@ -59,7 +59,7 @@ watch(
   { immediate: true },
 );
 
-const { fitView } = useVueFlow();
+const { fitView, getViewport, setViewport } = useVueFlow();
 
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
 const parentOf = computed<Map<string, string | undefined>>(() =>
@@ -118,6 +118,19 @@ const matchIds = computed<Set<string>>(
 
 function onNodeClick({ node }: NodeMouseEvent): void {
   if (node.data?.kind === "folder" || node.data?.kind === "file") {
+    // Snapshot the wrapper's on-screen position BEFORE toggling — the
+    // layout pass that follows re-runs ELK at the top level too and can
+    // shift every wrapper. The post-layout watcher then translates the
+    // Vue Flow viewport so this specific node ends up at (approximately)
+    // the same screen coordinates, keeping the eye anchored on what the
+    // user just clicked while everything else is free to re-flow.
+    const el = document.querySelector(
+      `.vue-flow__node[data-id="${CSS.escape(node.id)}"]`,
+    ) as HTMLElement | null;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      stayAtScreenPos.value = { nodeId: node.id, screenX: rect.left, screenY: rect.top };
+    }
     if (expandedCanvasIds.has(node.id)) expandedCanvasIds.delete(node.id);
     else expandedCanvasIds.add(node.id);
     // A real-module file wrapper is also a selectable node; keep that
@@ -128,6 +141,13 @@ function onNodeClick({ node }: NodeMouseEvent): void {
   }
   selectedNodeId.value = node.id;
 }
+
+interface StayAtScreenPos {
+  nodeId: string;
+  screenX: number;
+  screenY: number;
+}
+const stayAtScreenPos = ref<StayAtScreenPos | undefined>(undefined);
 
 function onPaneClick(): void {
   selectedNodeId.value = undefined;
@@ -252,6 +272,43 @@ watch(
     if (pending || !fitId || !flowNodes.value.some((node) => node.id === fitId)) return;
     pendingFitId.value = undefined;
     void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
+  },
+  { flush: "post" },
+);
+
+/**
+ * Focal-node-stays-put: after a wrapper click triggers a layout pass, wait
+ * for the new positions to hit the DOM (post flush + `nextTick`), read the
+ * clicked wrapper's new on-screen rect, and translate the Vue Flow viewport
+ * by the delta so the wrapper appears to stay put while everything else
+ * re-flows around it. Skipped when the delta is <1px (layout didn't move
+ * the node) or when the node vanished from the render (defensive).
+ */
+watch(
+  [layoutPending, flowNodes, stayAtScreenPos],
+  ([pending]) => {
+    const target = stayAtScreenPos.value;
+    if (pending || !target) return;
+    if (!flowNodes.value.some((node) => node.id === target.nodeId)) {
+      stayAtScreenPos.value = undefined;
+      return;
+    }
+    void nextTick(() => {
+      const el = document.querySelector(
+        `.vue-flow__node[data-id="${CSS.escape(target.nodeId)}"]`,
+      ) as HTMLElement | null;
+      stayAtScreenPos.value = undefined;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const dx = rect.left - target.screenX;
+      const dy = rect.top - target.screenY;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      const vp = getViewport();
+      void setViewport(
+        { x: vp.x - dx, y: vp.y - dy, zoom: vp.zoom },
+        { duration: 200 },
+      );
+    });
   },
   { flush: "post" },
 );

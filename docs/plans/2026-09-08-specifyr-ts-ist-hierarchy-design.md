@@ -1,7 +1,71 @@
 # IST/SOLL/PLAN Hierarchy Design
 
-**Status:** Validated design, not an implementation plan. Break into sequential
-implementation slices via `writing-plans` before building.
+**Status:** Slices 1-4 shipped; the shipped implementation diverges from
+several of the original decisions below (all through review-driven course
+corrections). See **"Shipped state (2026-09-09)"** immediately after this
+header for the delta; the rest of the doc is preserved as the *original*
+design intent so the reasoning behind the decisions stays readable.
+
+## Shipped state (2026-09-09)
+
+Diff vs. the design decisions below, in order of encountering them further
+down:
+
+- **Canvas rendering: wrapper nodes.** As designed. `parentNode` +
+  `extent: 'parent'`, badge when collapsed, grows when expanded. One
+  caveat learned in review: Vue Flow does not DOM-nest children inside
+  their `parentNode`'s `<div>`, so CSS `overflow: auto` on a wrapper
+  cannot clip escaping children (the "children DOM-siblings" bug). Live
+  code accepts grow-to-fit and lets Vue Flow's pan handle the rare
+  overflow.
+- **Edge aggregation.** Rewritten to LCA (`edge-aggregation.ts::aggregateEdges`):
+  find the two endpoints' lowest common ancestor in the hierarchy, then
+  take the immediate child of the LCA on each side as the aggregation
+  endpoint. Consequence: cross-top-level edges always collapse to a
+  single top-level pair — expanding a subfolder inside `src` never
+  re-fans a `tests → src` edge into `tests → cli`, `tests → core`, etc.
+  Dim-adjacency uses `visibleAncestors(nodeId)` on the selection so an
+  edge landing at ANY visible ancestor of the selected node stays
+  un-dimmed.
+- **Layout stability: hybrid → flow + rectpacking.** The original
+  "fixed alphabetical grid at top level + per-container ELK inside"
+  was tried, then dropped because ELK-`layered` inside sparse folders
+  wasted horizontal space and its `BRANDES_KOEPF` node placement
+  created zig-zag drift in linear chains. Shipped implementation:
+  - **Top-level:** `flowLayoutTopLevel` — down-and-right row-major
+    packing. Anything left of or above an expanding wrapper never
+    moves; only right-siblings and rows-below shift. Row height =
+    tallest cell's height (rows grow to fit).
+  - **Per-container:** `elk.algorithm: rectpacking` (not `layered`).
+    Trade-off: import direction is no longer visualised as a top-down
+    flow, but columns actually align in the grid you'd expect. ELK
+    spacing very compact (`nodeNode: 12`, `padding: 0` — outer padding
+    is added once by `CONTAINER_PADDING`, not twice).
+  - **Camera anchoring:** intentionally NOT compensated by viewport
+    translation any more. `pendingFitId` + `stayAtScreenPos` were both
+    tried and removed after user testing — the flow layout's "nothing
+    left/above moves" invariant is the only stability guarantee. The
+    user pans over to new content instead.
+- **Design language / chrome.** Chrome (top bar, sidebars, dialog, tree)
+  uses shadcn-vue design tokens (`bg-background`, `text-foreground`,
+  `bg-card`, `bg-muted`, `bg-primary`, `text-primary-foreground`,
+  `bg-accent`, `border-border`, `border-input`, `border-ring`) sourced
+  from HSL vars in `frontend/assets/css/tailwind.css`. Dark theme is
+  opt-in via `[data-theme="dark"]` (default is light). Vue-Flow canvas
+  bg reads `--graph-bg`, dot grid reads `--graph-grid`, edges read
+  `--graph-arrow`.
+- **Search auto-expand (Slice 5).** The section "Search + Collapse
+  interaction" below says "fits the camera after expand" — camera fit
+  has been removed as a design principle. Slice 5 will implement the
+  auto-expand half only (add ancestor folders of the match to
+  `expandedCanvasIds`), and let the user pan to the newly-visible node.
+  A subtle highlight pulse on the match wrapper is an option.
+
+---
+
+**Historical status (as of drafting):** Validated design, not an
+implementation plan. Break into sequential implementation slices via
+`writing-plans` before building.
 
 ## Problem
 
@@ -203,11 +267,19 @@ rendering glued together in one pass.
 
 ## Search + Collapse interaction
 
-Enter on a search hit that's currently hidden inside a collapsed
-folder/file auto-expands every ancestor down to it, then fits the camera —
-same as today's behavior, extended to also open ancestor wrapper boxes.
-Without this, Search's core promise ("start from anywhere") breaks the
-moment the graph defaults to collapsed.
+**Original intent** (as designed): Enter on a search hit that's currently
+hidden inside a collapsed folder/file auto-expands every ancestor down to
+it, then fits the camera.
+
+**Revised for Slice 5** (after auto-centering was removed in PR #28):
+auto-expand still happens (add every ancestor folder of the match to
+`expandedCanvasIds`), but the camera does NOT fit — the user pans to the
+match themselves. Rationale: the flow-layout invariant ("expanding a
+wrapper never moves anything left/above of it") is the eye's anchor;
+teleporting the camera on top of that would double-shift the view. A
+subtle transient highlight on the match's file wrapper is an acceptable
+attention nudge; a full `fitView` is not. See Slice 5 plan for the
+concrete behavior.
 
 ## Testing strategy
 

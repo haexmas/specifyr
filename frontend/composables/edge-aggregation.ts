@@ -28,6 +28,31 @@ export function resolveVisibleEndpoint(
   return undefined;
 }
 
+/**
+ * The enclosing visible wrapper of `nodeId` — the visible container
+ * that `nodeId` sits *inside*, never `nodeId` itself unless it is
+ * top-level. Used to bundle cross-container edges up to the wrapper
+ * level so N parallel arrows from siblings of the same folder to the
+ * same target collapse into one arrow between the folder and that
+ * target. A top-level id has no enclosing container, so this returns
+ * that id itself — it is already the coarsest possible endpoint.
+ */
+export function enclosingVisibleWrapper(
+  nodeId: string,
+  parentOf: ReadonlyMap<string, string | undefined>,
+  visibleIds: ReadonlySet<string>,
+): string | undefined {
+  if (!parentOf.has(nodeId)) return undefined;
+  const parent = parentOf.get(nodeId);
+  if (parent === undefined) return nodeId;
+  let current: string | undefined = parent;
+  while (current !== undefined) {
+    if (visibleIds.has(current)) return current;
+    current = parentOf.get(current);
+  }
+  return undefined;
+}
+
 // A null byte can never appear in a real node id, so it's a safe separator
 // for the (from, to) dedup key without risk of collision with any id content.
 const KEY_SEP = "\0";
@@ -42,13 +67,26 @@ interface Bucket {
 }
 
 /**
- * Resolve every real edge's endpoints to their visible ancestors, drop
- * self-loops (both endpoints resolve to the same visible container),
- * dedupe by resulting `(from, to)` pair. Purely a rendering derivative —
- * the raw `edges` array is untouched.
+ * Aggregate raw edges into canvas-visible edges using a two-tier rule:
  *
- * An edge whose either endpoint is unknown (no entry in `parentOf`, so
- * `resolveVisibleEndpoint` returns undefined) is silently dropped.
+ * - **Cross-wrapper edges** (both endpoints live in *different*
+ *   enclosing visible wrappers) collapse to a single wrapper→wrapper
+ *   edge. Every raw edge crossing the same pair of wrappers dedupes
+ *   into one `AggregatedEdge` whose `count` reflects how many raw
+ *   edges backed it. This is what bundles N parallel arrows from
+ *   siblings of a folder to the same target into one folder→target
+ *   arrow — a folder that imports something from `src` shows one edge,
+ *   not one per file inside it.
+ * - **Intra-wrapper edges** (both endpoints live in the *same*
+ *   enclosing wrapper) keep their raw endpoints so the internal
+ *   structure of an expanded wrapper stays visible at file/symbol
+ *   granularity. Raw endpoints must themselves be visible; otherwise
+ *   the edge is dropped (self-loop from aggregation).
+ *
+ * An edge whose either endpoint is unknown (no entry in `parentOf`,
+ * so `enclosingVisibleWrapper` returns `undefined`) is silently
+ * dropped. Purely a rendering derivative — the raw `edges` array is
+ * untouched.
  */
 export function aggregateEdges(
   edges: readonly Edge[],
@@ -57,10 +95,26 @@ export function aggregateEdges(
 ): AggregatedEdge[] {
   const buckets = new Map<string, Bucket>();
   for (const edge of edges) {
-    const from = resolveVisibleEndpoint(edge.from, parentOf, visibleIds);
-    const to = resolveVisibleEndpoint(edge.to, parentOf, visibleIds);
-    if (from === undefined || to === undefined) continue;
-    if (from === to) continue;
+    const wx = enclosingVisibleWrapper(edge.from, parentOf, visibleIds);
+    const wy = enclosingVisibleWrapper(edge.to, parentOf, visibleIds);
+    if (wx === undefined || wy === undefined) continue;
+
+    let from: string;
+    let to: string;
+    if (wx === wy) {
+      // Intra-wrapper: keep raw endpoints so file/symbol detail stays
+      // visible when the wrapper is expanded. Both raw ids must be
+      // in `visibleIds` to actually render; otherwise this edge would
+      // aggregate to a self-loop on the shared wrapper and drop.
+      if (!visibleIds.has(edge.from) || !visibleIds.has(edge.to)) continue;
+      if (edge.from === edge.to) continue;
+      from = edge.from;
+      to = edge.to;
+    } else {
+      from = wx;
+      to = wy;
+    }
+
     const key = `${from}${KEY_SEP}${to}`;
     const existing = buckets.get(key);
     if (existing) {

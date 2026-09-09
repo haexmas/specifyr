@@ -185,4 +185,51 @@ describe("aggregateEdges", () => {
     const result = aggregateEdges(edges, parents, visible("src", "dst"));
     expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
   });
+
+  it("bundles N visible siblings targeting the same visible top-level into one wrapper→top edge", () => {
+    // The motivating case: expand a folder, its four files all import
+    // something from a still-collapsed sibling folder. Under the old
+    // per-endpoint rule this would render as four parallel arrows to the
+    // same target — the whole point of wrapper aggregation is that the
+    // four collapse to one folder→target edge with count=4.
+    const parents = parentMap({
+      utils: undefined,
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+      "utils/c.ts": "utils",
+      "utils/d.ts": "utils",
+      src: undefined,
+    });
+    const edges = [
+      makeEdge("e1", "utils/a.ts", "src"),
+      makeEdge("e2", "utils/b.ts", "src"),
+      makeEdge("e3", "utils/c.ts", "src"),
+      makeEdge("e4", "utils/d.ts", "src"),
+    ];
+    const visibleIds = visible(
+      "utils",
+      "utils/a.ts",
+      "utils/b.ts",
+      "utils/c.ts",
+      "utils/d.ts",
+      "src",
+    );
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:utils->src", from: "utils", to: "src", count: 4 }]);
+  });
+
+  it("preserves raw endpoints for an edge between two visible siblings in the same expanded wrapper", () => {
+    // Counterpart to the bundling rule: expanding a folder to inspect
+    // its internal wiring must still show individual file→file arrows
+    // between its own children — otherwise expansion is pointless.
+    const parents = parentMap({
+      utils: undefined,
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+    });
+    const edges = [makeEdge("e1", "utils/a.ts", "utils/b.ts")];
+    const visibleIds = visible("utils", "utils/a.ts", "utils/b.ts");
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "e1", from: "utils/a.ts", to: "utils/b.ts", count: 1 }]);
+  });
 });

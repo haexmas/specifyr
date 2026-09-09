@@ -19,6 +19,7 @@ import {
 } from "../composables/build-hierarchy.js";
 import {
   aggregateEdges,
+  enclosingVisibleWrapper,
   resolveVisibleEndpoint,
 } from "../composables/edge-aggregation.js";
 import { formatNodeDetails } from "../composables/format-node-details.js";
@@ -264,8 +265,16 @@ const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
   const selectedId = selectedNode.value?.id;
   const visibleIds = new Set(flowNodes.value.map((n) => n.id));
+  // Both angles matter for dim-adjacency now that aggregation is two-tier:
+  // - `visibleSelectedId` matches intra-wrapper edges (raw ids preserved
+  //   when both endpoints live in the same expanded wrapper).
+  // - `selectedWrapper` matches cross-wrapper aggregate edges (which
+  //   carry the enclosing wrapper ids rather than the raw endpoint).
   const visibleSelectedId = selectedId
     ? resolveVisibleEndpoint(selectedId, parentOf.value, visibleIds)
+    : undefined;
+  const selectedWrapper = selectedId
+    ? enclosingVisibleWrapper(selectedId, parentOf.value, visibleIds)
     : undefined;
   const aggregated = aggregateEdges(data.value.edges, parentOf.value, visibleIds);
   return aggregated.map((edge) => {
@@ -279,9 +288,11 @@ const flowEdges = computed<FlowEdge[]>(() => {
     // types land, extend `AggregatedEdge` with a discriminator (likely
     // `types: Set<string>`) before restoring per-type dim behavior.
     const dim =
-      Boolean(visibleSelectedId) &&
+      Boolean(selectedId) &&
       edge.from !== visibleSelectedId &&
-      edge.to !== visibleSelectedId;
+      edge.to !== visibleSelectedId &&
+      edge.from !== selectedWrapper &&
+      edge.to !== selectedWrapper;
     return {
       id: edge.id,
       source: edge.from,

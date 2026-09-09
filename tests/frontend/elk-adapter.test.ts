@@ -43,6 +43,27 @@ describe("modelToElkGraph", () => {
     });
     expect(graph.edges).toEqual([]);
   });
+
+  it("uses the sizeOf override per node, falling back to defaults when it returns undefined", () => {
+    const graph = modelToElkGraph(
+      {
+        nodes: [
+          { id: "ts-aaa", label: "a" },
+          { id: "ts-bbb", label: "b" },
+        ],
+        edges: [],
+      },
+      (id) => (id === "ts-aaa" ? { width: 400, height: 300 } : undefined),
+    );
+    const byId = new Map(graph.children.map((c) => [c.id, c]));
+    expect(byId.get("ts-aaa")).toMatchObject({ width: 400, height: 300 });
+    // ts-bbb has no override → default NODE_WIDTH/NODE_HEIGHT from the adapter.
+    const bbb = byId.get("ts-bbb");
+    expect(bbb?.width).toBeGreaterThan(0);
+    expect(bbb?.height).toBeGreaterThan(0);
+    expect(bbb?.width).not.toBe(400);
+    expect(bbb?.height).not.toBe(300);
+  });
 });
 
 describe("elkResultToPositions", () => {

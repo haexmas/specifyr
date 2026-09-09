@@ -1,12 +1,7 @@
-import ELK from "elkjs/lib/elk.bundled.js";
 import { type Ref, computed, ref, watchEffect } from "vue";
 
-import {
-  type AdapterEdge,
-  type AdapterNode,
-  elkResultToPositions,
-  modelToElkGraph,
-} from "./elk-adapter.js";
+import type { AdapterEdge, AdapterNode } from "./elk-adapter.js";
+import { layoutContainer } from "./layout-container.js";
 
 export interface UseElkLayoutInput {
   nodes: Ref<AdapterNode[]>;
@@ -19,14 +14,14 @@ export interface UseElkLayoutResult {
   error: Ref<Error | undefined>;
 }
 
-// One ELK instance per composable invocation. elk.bundled.js resolves to an
-// in-thread FakeWorker (no OS Web Worker), so there is nothing to terminate
-// on unmount — GC releases the closure when the composable's refs are dropped.
+// A fresh ELK instance is created inside `layoutContainer` per call.
+// elk.bundled.js resolves to an in-thread FakeWorker (no OS Web Worker), so
+// there is nothing to terminate on unmount — GC releases the closure when
+// the composable's refs are dropped.
 export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutResult {
   const positions = ref(new Map<string, { x: number; y: number }>());
   const pending = ref(false);
   const error = ref<Error | undefined>(undefined);
-  const elk = new ELK();
 
   const inputKey = computed(() =>
     JSON.stringify({
@@ -47,13 +42,9 @@ export function useElkLayout({ nodes, edges }: UseElkLayoutInput): UseElkLayoutR
     pending.value = true;
     error.value = undefined;
     try {
-      const graph = modelToElkGraph({ nodes: nodes.value, edges: edges.value });
-      // elkjs's ElkNode/ElkExtendedEdge types are structurally compatible with our
-      // adapter output, but the generic self-reference in ELK.layout confuses TS.
-      // Cast the call site only — our own types stay strict.
-      const laidOut = await elk.layout(graph as unknown as Parameters<typeof elk.layout>[0]);
+      const result = await layoutContainer({ nodes: nodes.value, edges: edges.value });
       if (myRun !== runId) return; // a newer run has started, discard stale result
-      positions.value = elkResultToPositions(laidOut);
+      positions.value = result.positions;
     } catch (cause) {
       if (myRun !== runId) return; // discard stale error too
       error.value = cause instanceof Error ? cause : new Error(String(cause));

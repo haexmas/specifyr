@@ -20,8 +20,8 @@ export interface AdapterInput {
 // Match what pages/index.vue will feed to Vue Flow. Small enough that
 // layered fits the graph without excessive crossing; big enough to render
 // the two-line "name\n(type)" label without truncation.
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 60;
+export const NODE_WIDTH = 220;
+export const NODE_HEIGHT = 60;
 
 export interface ElkGraphInput {
   id: "root";
@@ -30,7 +30,15 @@ export interface ElkGraphInput {
   edges: Array<{ id: string; sources: string[]; targets: string[] }>;
 }
 
-export function modelToElkGraph(input: AdapterInput): ElkGraphInput {
+/**
+ * Per-node measured size lookup. Return `undefined` (or omit the callback)
+ * to fall back to the module-level NODE_WIDTH/NODE_HEIGHT defaults used by
+ * the flat top-level layout. The nested layout overrides these per child
+ * (badge size vs. expanded-cell size).
+ */
+export type SizeOf = (nodeId: string) => { width: number; height: number } | undefined;
+
+export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphInput {
   const ids = new Set(input.nodes.map((n) => n.id));
   return {
     id: "root",
@@ -38,11 +46,14 @@ export function modelToElkGraph(input: AdapterInput): ElkGraphInput {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
     },
-    children: input.nodes.map((n) => ({
-      id: n.id,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-    })),
+    children: input.nodes.map((n) => {
+      const size = sizeOf?.(n.id);
+      return {
+        id: n.id,
+        width: size?.width ?? NODE_WIDTH,
+        height: size?.height ?? NODE_HEIGHT,
+      };
+    }),
     // Edge ids come pre-deduped from Slice B (extractIst's `${from}::${to}::type`
     // gate). If a later slice emits duplicates, ELK will reject them with an
     // error — surface it, don't silently paper over.

@@ -6,9 +6,7 @@ import {
 } from "../../frontend/composables/edge-aggregation.js";
 
 /** Build a parent map from `{ child: parent | undefined }` pairs. */
-function parentMap(
-  pairs: Record<string, string | undefined>,
-): Map<string, string | undefined> {
+function parentMap(pairs: Record<string, string | undefined>): Map<string, string | undefined> {
   return new Map(Object.entries(pairs));
 }
 
@@ -30,9 +28,7 @@ describe("resolveVisibleEndpoint", () => {
 
   it("returns the child id when the visible child is a direct descendant of a visible parent", () => {
     const parents = parentMap({ parent: undefined, child: "parent" });
-    expect(resolveVisibleEndpoint("child", parents, visible("parent", "child"))).toBe(
-      "child",
-    );
+    expect(resolveVisibleEndpoint("child", parents, visible("parent", "child"))).toBe("child");
   });
 
   it("returns the parent id when the child is not visible but the parent is", () => {
@@ -55,9 +51,7 @@ describe("resolveVisibleEndpoint", () => {
       mid: "top",
       leaf: "mid",
     });
-    expect(resolveVisibleEndpoint("leaf", parents, visible("top", "mid", "leaf"))).toBe(
-      "leaf",
-    );
+    expect(resolveVisibleEndpoint("leaf", parents, visible("top", "mid", "leaf"))).toBe("leaf");
   });
 
   it("returns undefined when the id is unknown to parentOf", () => {
@@ -95,9 +89,7 @@ describe("aggregateEdges", () => {
     });
     const edges = [makeEdge("e1", "folder/file", "target")];
     const result = aggregateEdges(edges, parents, visible("folder", "target"));
-    expect(result).toEqual([
-      { id: "agg:folder->target", from: "folder", to: "target", count: 1 },
-    ]);
+    expect(result).toEqual([{ id: "agg:folder->target", from: "folder", to: "target", count: 1 }]);
   });
 
   it("emits two aggregates when children of the same collapsed folder point to different visible targets", () => {
@@ -108,10 +100,7 @@ describe("aggregateEdges", () => {
       x: undefined,
       y: undefined,
     });
-    const edges = [
-      makeEdge("e1", "folder/a", "x"),
-      makeEdge("e2", "folder/b", "y"),
-    ];
+    const edges = [makeEdge("e1", "folder/a", "x"), makeEdge("e2", "folder/b", "y")];
     const result = aggregateEdges(edges, parents, visible("folder", "x", "y"));
     expect(result).toEqual([
       { id: "agg:folder->x", from: "folder", to: "x", count: 1 },
@@ -128,14 +117,9 @@ describe("aggregateEdges", () => {
       "dst/x": "dst",
       "dst/y": "dst",
     });
-    const edges = [
-      makeEdge("e1", "src/a", "dst/x"),
-      makeEdge("e2", "src/b", "dst/y"),
-    ];
+    const edges = [makeEdge("e1", "src/a", "dst/x"), makeEdge("e2", "src/b", "dst/y")];
     const result = aggregateEdges(edges, parents, visible("src", "dst"));
-    expect(result).toEqual([
-      { id: "agg:src->dst", from: "src", to: "dst", count: 2 },
-    ]);
+    expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
   });
 
   it("drops edges whose endpoints resolve to the same visible container (no self-loops)", () => {

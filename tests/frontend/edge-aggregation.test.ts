@@ -174,4 +174,15 @@ describe("aggregateEdges", () => {
       { id: "agg:q->p", from: "q", to: "p", count: 1 },
     ]);
   });
+
+  it("dedupes two pass-through edges to one synthesized aggregate — the first raw id must NOT be reused", () => {
+    // Guards against a future "helpfully keep the first raw id when count > 1"
+    // regression. Two edges with different raw ids, both endpoints already
+    // visible: must dedup into one aggregate whose id is the synthesized
+    // `agg:...` form (not either raw id) and whose count is 2.
+    const parents = parentMap({ src: undefined, dst: undefined });
+    const edges = [makeEdge("raw-first", "src", "dst"), makeEdge("raw-second", "src", "dst")];
+    const result = aggregateEdges(edges, parents, visible("src", "dst"));
+    expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
+  });
 });

@@ -263,13 +263,15 @@ const flowEdges = computed<FlowEdge[]>(() => {
   const visibleIds = new Set(flowNodes.value.map((n) => n.id));
   const aggregated = aggregateEdges(data.value.edges, parentOf.value, visibleIds);
   return aggregated.map((edge) => {
-    // `AggregatedEdge` intentionally carries no `type` field: an aggregate
-    // may collapse edges of mixed kinds and there is no single answer. The
-    // pre-aggregation code un-dimmed every `imports` edge; since `imports`
-    // is the only shipped edge type today, dropping that guard is a no-op.
-    // When extends/implements or symbol-to-symbol edges land, extend
-    // `AggregatedEdge` with a discriminator (likely `types: Set<string>`)
-    // before restoring any per-type dim logic here.
+    // `AggregatedEdge` carries no `type` field on purpose: an aggregate can
+    // collapse edges of mixed kinds and there's no single right answer.
+    // The pre-aggregation code short-circuited `dim` to false for every
+    // `imports` edge — since `imports` is the only shipped edge type today,
+    // no edge was ever dimmed under selection. Dropping that guard means
+    // every non-adjacent aggregate now dims like the symbol nodes do; the
+    // canvas reads more consistently under selection. When mixed edge
+    // types land, extend `AggregatedEdge` with a discriminator (likely
+    // `types: Set<string>`) before restoring per-type dim behavior.
     const dim =
       Boolean(selectedId) &&
       edge.from !== selectedId &&

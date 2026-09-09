@@ -1,7 +1,6 @@
 import { type Ref, computed, ref, watchEffect } from "vue";
 
-import { type HierarchyNode, buildParentMap } from "./build-hierarchy.js";
-import { aggregateEdges } from "./edge-aggregation.js";
+import type { HierarchyNode } from "./build-hierarchy.js";
 import type { AdapterEdge, AdapterNode, SizeOf } from "./elk-adapter.js";
 import { layoutContainer } from "./layout-container.js";
 
@@ -18,6 +17,54 @@ export const EXPANDED_CELL_HEIGHT = 720;
 export const HEADER_HEIGHT = 28;
 /** Inner padding around scoped ELK children inside an expanded wrapper. */
 export const CONTAINER_PADDING = 12;
+/** Column count for the top-level flow layout (down-and-right packing). */
+const TOP_LEVEL_COLUMNS = 3;
+/** Gap between top-level cells in the flow layout. */
+const TOP_LEVEL_HGAP = 40;
+const TOP_LEVEL_VGAP = 40;
+/** Origin offset so the top-left wrapper sits away from the canvas edge. */
+const TOP_LEVEL_ORIGIN_X = 40;
+const TOP_LEVEL_ORIGIN_Y = 40;
+
+/**
+ * Row-major flow layout for top-level wrappers. Order is preserved
+ * (buildHierarchy already emits them alphabetically); each row's height
+ * grows to its tallest cell. Guarantees:
+ *
+ * - A wrapper `X` that expands and grows only pushes its right-siblings
+ *   in the same row further right, and only pushes the rows below it
+ *   further down. Wrappers to the left of `X` in the same row and every
+ *   wrapper in earlier rows keep their exact position.
+ * - No wrapper ever moves left or up when the graph grows — matches the
+ *   user's "just flow down-and-right when things expand" mental model.
+ *
+ * ELK is intentionally NOT used at the top level: its `layered`
+ * algorithm rearranges nodes on every edge change, which reads as
+ * visual chaos when users are only drilling into a container.
+ */
+function flowLayoutTopLevel(
+  ids: readonly string[],
+  sizeOf: (id: string) => { width: number; height: number },
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  let cursorY = TOP_LEVEL_ORIGIN_Y;
+  for (let row = 0; row * TOP_LEVEL_COLUMNS < ids.length; row += 1) {
+    let cursorX = TOP_LEVEL_ORIGIN_X;
+    let rowHeight = 0;
+    for (let col = 0; col < TOP_LEVEL_COLUMNS; col += 1) {
+      const idx = row * TOP_LEVEL_COLUMNS + col;
+      if (idx >= ids.length) break;
+      const id = ids[idx];
+      if (id === undefined) continue;
+      const size = sizeOf(id);
+      positions.set(id, { x: cursorX, y: cursorY });
+      cursorX += size.width + TOP_LEVEL_HGAP;
+      if (size.height > rowHeight) rowHeight = size.height;
+    }
+    cursorY += rowHeight + TOP_LEVEL_VGAP;
+  }
+  return positions;
+}
 
 export interface NestedLayoutEntry {
   x: number;
@@ -236,36 +283,13 @@ export function useNestedElkLayout({
         topLevelLayouts.set(entry.id, await layoutNode(entry, currentExpanded, currentEdges));
       }
 
-      // Top-level positions come from ELK too — one more scoped call over
-      // the top-level wrappers themselves, using aggregated cross-top-level
-      // edges as ELK's edge input. Layout re-runs on every expand/collapse
-      // and can rearrange top-levels to keep related wrappers close and to
-      // avoid overlap; the calling page keeps the *focal* node steady on
-      // screen by translating the Vue Flow viewport after each pass.
+      // Down-and-right flow layout for the top level: no ELK, no
+      // rearrangement. Growth on expand only pushes right-siblings and
+      // rows-below; left-siblings and earlier rows never move.
       const topLevelIds = currentHierarchy.map((e) => e.id);
-      const topLevelIdSet = new Set(topLevelIds);
-      const parentOf = buildParentMap(currentHierarchy);
-      const topLevelAgg = aggregateEdges(
-        // aggregateEdges accepts the raw `Edge` shape (with a `type`);
-        // synthesize the type field since layout only cares about endpoints.
-        currentEdges.map((e) => ({ ...e, type: "imports" })),
-        parentOf,
-        topLevelIdSet,
-      );
-      const topLevelAdapterEdges: AdapterEdge[] = topLevelAgg.map((e) => ({
-        id: e.id,
-        from: e.from,
-        to: e.to,
-      }));
-      const topLevelAdapterNodes: AdapterNode[] = currentHierarchy.map((e) => ({
-        id: e.id,
-        label: e.label,
-      }));
-      const topLevelSizeOf: SizeOf = (id) => topLevelLayouts.get(id)?.size;
-      const { positions: topLevelPositions } = await layoutContainer({
-        nodes: topLevelAdapterNodes,
-        edges: topLevelAdapterEdges,
-        sizeOf: topLevelSizeOf,
+      const topLevelPositions = flowLayoutTopLevel(topLevelIds, (id) => {
+        const s = topLevelLayouts.get(id)?.size;
+        return s ?? { width: BADGE_WIDTH, height: BADGE_HEIGHT };
       });
 
       const flat = new Map<string, NestedLayoutEntry>();

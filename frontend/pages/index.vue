@@ -59,7 +59,7 @@ watch(
   { immediate: true },
 );
 
-const { fitView, getViewport, setViewport } = useVueFlow();
+const { fitView } = useVueFlow();
 
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
 const parentOf = computed<Map<string, string | undefined>>(() =>
@@ -118,36 +118,20 @@ const matchIds = computed<Set<string>>(
 
 function onNodeClick({ node }: NodeMouseEvent): void {
   if (node.data?.kind === "folder" || node.data?.kind === "file") {
-    // Snapshot the wrapper's on-screen position BEFORE toggling — the
-    // layout pass that follows re-runs ELK at the top level too and can
-    // shift every wrapper. The post-layout watcher then translates the
-    // Vue Flow viewport so this specific node ends up at (approximately)
-    // the same screen coordinates, keeping the eye anchored on what the
-    // user just clicked while everything else is free to re-flow.
-    const el = document.querySelector(
-      `.vue-flow__node[data-id="${CSS.escape(node.id)}"]`,
-    ) as HTMLElement | null;
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      stayAtScreenPos.value = { nodeId: node.id, screenX: rect.left, screenY: rect.top };
-    }
     if (expandedCanvasIds.has(node.id)) expandedCanvasIds.delete(node.id);
     else expandedCanvasIds.add(node.id);
     // A real-module file wrapper is also a selectable node; keep that
     // dual behavior — toggle expansion AND set selectedNodeId when the
-    // wrapper is selectable.
+    // wrapper is selectable. No viewport auto-centering: the top-level
+    // flow layout guarantees that expanding a wrapper only pushes right
+    // and down siblings; left/above content never moves, so the user's
+    // eye stays anchored by the layout itself rather than by camera
+    // gymnastics.
     if (node.selectable) selectedNodeId.value = node.id;
     return;
   }
   selectedNodeId.value = node.id;
 }
-
-interface StayAtScreenPos {
-  nodeId: string;
-  screenX: number;
-  screenY: number;
-}
-const stayAtScreenPos = ref<StayAtScreenPos | undefined>(undefined);
 
 function onPaneClick(): void {
   selectedNodeId.value = undefined;
@@ -176,13 +160,11 @@ watch(selectionFilePath, (result) => {
 
 function onExplorerSelect(nodeId: string | undefined): void {
   selectedNodeId.value = nodeId;
-  const fitId = nodeId
-    ? (findFilePath(hierarchy.value, nodeId)?.fileId ?? nodeId)
-    : undefined;
-  pendingFitId.value = fitId;
+  // No fitView here either — the `selectionFilePath` watcher already
+  // auto-expands the ancestor chain on both sides (tree + canvas), so
+  // clicking a file in the tree opens its containers on the canvas.
+  // Camera stays where it was; user pans over if needed.
 }
-
-const pendingFitId = ref<string | undefined>(undefined);
 
 /**
  * Emits three flavours of Vue Flow node from the nested `layout` map:
@@ -265,53 +247,6 @@ const flowNodes = computed<FlowNode[]>(() => {
   return results;
 });
 
-watch(
-  [layoutPending, flowNodes, pendingFitId],
-  ([pending]) => {
-    const fitId = pendingFitId.value;
-    if (pending || !fitId || !flowNodes.value.some((node) => node.id === fitId)) return;
-    pendingFitId.value = undefined;
-    void fitView({ nodes: [fitId], duration: 400, padding: 0.3 });
-  },
-  { flush: "post" },
-);
-
-/**
- * Focal-node-stays-put: after a wrapper click triggers a layout pass, wait
- * for the new positions to hit the DOM (post flush + `nextTick`), read the
- * clicked wrapper's new on-screen rect, and translate the Vue Flow viewport
- * by the delta so the wrapper appears to stay put while everything else
- * re-flows around it. Skipped when the delta is <1px (layout didn't move
- * the node) or when the node vanished from the render (defensive).
- */
-watch(
-  [layoutPending, flowNodes, stayAtScreenPos],
-  ([pending]) => {
-    const target = stayAtScreenPos.value;
-    if (pending || !target) return;
-    if (!flowNodes.value.some((node) => node.id === target.nodeId)) {
-      stayAtScreenPos.value = undefined;
-      return;
-    }
-    void nextTick(() => {
-      const el = document.querySelector(
-        `.vue-flow__node[data-id="${CSS.escape(target.nodeId)}"]`,
-      ) as HTMLElement | null;
-      stayAtScreenPos.value = undefined;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const dx = rect.left - target.screenX;
-      const dy = rect.top - target.screenY;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-      const vp = getViewport();
-      void setViewport(
-        { x: vp.x - dx, y: vp.y - dy, zoom: vp.zoom },
-        { duration: 200 },
-      );
-    });
-  },
-  { flush: "post" },
-);
 
 /** Transforms SOLL edges into Vue Flow edge objects. */
 const flowEdges = computed<FlowEdge[]>(() => {
@@ -768,7 +703,13 @@ function shortenPath(value: string, max = 48): string {
   border-radius: 0.5rem;
   border-width: 1px;
   border-color: var(--graph-arrow);
-  background: color-mix(in oklab, var(--graph-mask), transparent 30%);
+  /* Use the slightly-lighter `--graph-grid` (slate-800) as base so the
+     wrapper stands out from `--graph-bg` (slate-950) canvas underneath.
+     Text is bumped up to a readable slate-200 — Vue Flow's own default
+     text color is dark and would render as an ink-blob on dark bg. */
+  background: color-mix(in oklab, var(--graph-grid), transparent 25%);
+  color: #e2e8f0;
+  font-weight: 500;
   padding: 0;
   text-align: left;
 }

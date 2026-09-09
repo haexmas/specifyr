@@ -145,7 +145,10 @@ describe("buildNestedInputKey", () => {
       edges: ref([]),
     });
 
-    await vi.waitFor(() => expect(result.pending.value).toBe(false));
+    // The 100-child ELK fixture is intentionally large enough to exceed the
+    // reserved cell. Under full-suite load it can take longer than Vitest's
+    // default 1s wait timeout even though the layout completes successfully.
+    await vi.waitFor(() => expect(result.pending.value).toBe(false), { timeout: 5_000 });
 
     const wrapper = result.layout.value.get("folder:large");
     expect(wrapper?.width).toBeGreaterThan(0);

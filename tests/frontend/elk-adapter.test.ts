@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { elkResultToPositions, modelToElkGraph } from "../../frontend/composables/elk-adapter.js";
 
 describe("modelToElkGraph", () => {
-  it("returns a root graph with the layered algorithm and top-down direction", () => {
+  it("returns a root graph with the rectpacking algorithm and top-down direction", () => {
     const graph = modelToElkGraph({ nodes: [], edges: [] });
     expect(graph.id).toBe("root");
-    expect(graph.layoutOptions?.["elk.algorithm"]).toBe("layered");
+    expect(graph.layoutOptions?.["elk.algorithm"]).toBe("rectpacking");
     expect(graph.layoutOptions?.["elk.direction"]).toBe("DOWN");
   });
 

@@ -417,18 +417,26 @@ function shortenPath(value: string, max = 48): string {
       >
         <button
           type="button"
-          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 text-foreground last:border-r-0 hover:bg-accent"
+          class="cursor-pointer border-r border-border px-3 py-1 last:border-r-0"
           style="font: inherit"
-          :class="view === 'soll' ? 'bg-primary font-semibold text-primary-foreground' : ''"
+          :class="
+            view === 'soll'
+              ? 'bg-primary font-semibold text-primary-foreground'
+              : 'bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground'
+          "
           @click="view = 'soll'"
         >
           SOLL
         </button>
         <button
           type="button"
-          class="cursor-pointer border-r border-border bg-transparent px-3 py-1 text-foreground last:border-r-0 hover:bg-accent"
+          class="cursor-pointer border-r border-border px-3 py-1 last:border-r-0"
           style="font: inherit"
-          :class="view === 'ist' ? 'bg-primary font-semibold text-primary-foreground' : ''"
+          :class="
+            view === 'ist'
+              ? 'bg-primary font-semibold text-primary-foreground'
+              : 'bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground'
+          "
           @click="view = 'ist'"
         >
           IST

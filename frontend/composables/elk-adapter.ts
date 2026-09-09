@@ -45,16 +45,18 @@ export function modelToElkGraph(input: AdapterInput, sizeOf?: SizeOf): ElkGraphI
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
-      // Compact spacing so ELK doesn't leave large empty pockets around
-      // sparse containers. The outer wrapper adds its own CONTAINER_PADDING
-      // + HEADER_HEIGHT on top; `elk.padding=0` here avoids paying that
-      // margin twice. Node/layer spacing keeps enough breathing room for
-      // edges to route without crowding the labels.
-      "elk.spacing.nodeNode": "20",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "36",
-      "elk.spacing.edgeNode": "12",
-      "elk.spacing.edgeEdge": "8",
+      // Very compact spacing. `layered` tends to spread siblings across a
+      // layer to avoid edge crossings; on our (mostly-sparse) file-level
+      // graphs this manifests as huge horizontal gaps. Dropping node/layer
+      // spacing to the minimum ELK still accepts + post-compacting left
+      // packs the row back together without hurting edge routing.
+      "elk.spacing.nodeNode": "12",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "20",
+      "elk.spacing.edgeNode": "8",
+      "elk.spacing.edgeEdge": "6",
       "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+      // Push nodes leftward after layering so sparse rows don't sprawl.
+      "elk.layered.compaction.postCompaction.strategy": "LEFT",
     },
     children: input.nodes.map((n) => {
       const size = sizeOf?.(n.id);

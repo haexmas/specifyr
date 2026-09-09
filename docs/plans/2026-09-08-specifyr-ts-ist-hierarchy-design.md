@@ -236,14 +236,23 @@ node.
 
 ## Suggested slicing for implementation
 
-Given the size, this is not one slice. Suggested breakdown (to be finalized
-during actual plan-writing, not committed to here):
+Given the size, this is not one slice. Breakdown, tracked as implemented:
 
-1. Data model: extractor `path` field + `buildHierarchy()` (TDD, no UI yet).
-2. Explorer tree UI (read-only nav, no canvas changes yet).
-3. Nested canvas wrapper boxes + hybrid layout (biggest chunk).
-4. Edge aggregation.
-5. Search + auto-expand integration.
+1. ✅ **Data model** — extractor `path` field + `buildHierarchy()` (TDD, no
+   UI). Plan: `docs/plans/2026-09-08-specifyr-ts-slice-hierarchy-data.md`.
+   Shipped: PR #20.
+2. ✅ **Explorer tree UI** — read-only nav pane, `findFilePath()`,
+   bidirectional sync with the existing flat canvas via `selectedNodeId` +
+   `fitView` (interim — no nested wrapper boxes yet). Plan:
+   `docs/plans/2026-09-09-specifyr-ts-slice-explorer-tree.md`. Shipped: PR #21.
+3. ⬜ **Nested canvas wrapper boxes + hybrid layout** (biggest remaining
+   chunk) — not started.
+4. ⬜ **Edge aggregation** — not started.
+5. ⬜ **Search + auto-expand integration** — not started. Note: tree-driven
+   auto-expand-on-selection already landed in slice 2 for the *tree side*;
+   this item is specifically about auto-expanding *canvas* wrapper boxes
+   once slice 3 introduces them, so Search's jump-to-first-match keeps
+   working once the canvas stops being flat.
 
 Each slice follows the existing project pattern: implement → code-review
 checkpoint → E2E guard → README bump → PR → wait for CodeRabbit → merge.

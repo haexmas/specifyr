@@ -233,6 +233,49 @@ describe("aggregateEdges", () => {
     const result = aggregateEdges(edges, parents, visibleIds);
     expect(result).toEqual([{ id: "e1", from: "utils/a.ts", to: "utils/b.ts", count: 1 }]);
   });
+
+  it("aggregates across deeply nested wrappers to the top-level pair when they share no visible ancestor", () => {
+    // LCA rule: expanding `frontend` and `composables` and `utils`
+    // must not re-fan cross-top-level edges into utils-level arrows —
+    // every `utils/*.ts → src` collapses to a single `frontend → src`
+    // no matter how deep the drill on the source side is.
+    const parents = parentMap({
+      frontend: undefined,
+      composables: "frontend",
+      utils: "composables",
+      "utils/a.ts": "utils",
+      "utils/b.ts": "utils",
+      src: undefined,
+    });
+    const edges = [makeEdge("e1", "utils/a.ts", "src"), makeEdge("e2", "utils/b.ts", "src")];
+    const visibleIds = visible(
+      "frontend",
+      "composables",
+      "utils",
+      "utils/a.ts",
+      "utils/b.ts",
+      "src",
+    );
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:frontend->src", from: "frontend", to: "src", count: 2 }]);
+  });
+
+  it("aggregates to the children of a shared visible ancestor when both endpoints live under it", () => {
+    // LCA rule inside a shared top-level: edges between siblings of
+    // an expanded parent land at that parent's own child level, not
+    // at the parent itself and not at leaf granularity.
+    const parents = parentMap({
+      src: undefined,
+      cli: "src",
+      "cli/foo.ts": "cli",
+      core: "src",
+      "core/bar.ts": "core",
+    });
+    const edges = [makeEdge("e1", "cli/foo.ts", "core/bar.ts")];
+    const visibleIds = visible("src", "cli", "core", "cli/foo.ts", "core/bar.ts");
+    const result = aggregateEdges(edges, parents, visibleIds);
+    expect(result).toEqual([{ id: "agg:cli->core", from: "cli", to: "core", count: 1 }]);
+  });
 });
 
 describe("visibleAncestors", () => {

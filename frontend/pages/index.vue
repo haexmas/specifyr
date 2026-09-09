@@ -5,7 +5,6 @@ import {
   type Edge as FlowEdge,
   MarkerType,
   type NodeMouseEvent,
-  useVueFlow,
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import type { Model, Node } from "specifyr";
@@ -58,8 +57,6 @@ watch(
   },
   { immediate: true },
 );
-
-const { fitView } = useVueFlow();
 
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
 const parentOf = computed<Map<string, string | undefined>>(() =>
@@ -140,8 +137,13 @@ function onPaneClick(): void {
 function onSearchSubmit(): void {
   const first = matches.value[0];
   if (!first) return;
+  // Selecting the match triggers the `selectionFilePath` watcher, which
+  // adds every ancestor folder id to both `expandedFolderIds` and
+  // `expandedCanvasIds`. No `fitView` — the flow layout guarantees that
+  // expanding a wrapper never moves anything left/above of it, so the
+  // user's eye stays anchored; the user pans over to the newly-visible
+  // match wrapper themselves. See PR #28.
   selectedNodeId.value = first.id;
-  void fitView({ nodes: [first.id], duration: 400, padding: 0.3 });
 }
 
 const selectionFilePath = computed<FilePathResult | undefined>(() => {

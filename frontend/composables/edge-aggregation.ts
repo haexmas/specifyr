@@ -53,6 +53,29 @@ export function enclosingVisibleWrapper(
   return undefined;
 }
 
+/**
+ * Every visible id along `nodeId`'s ancestor chain (including `nodeId`
+ * itself when visible). The full chain matters for selection-adjacency
+ * checks against aggregated edges: an edge landing at any ancestor of
+ * the selection is "adjacent to" that selection — otherwise selecting
+ * a deep symbol dims every cross-wrapper edge above it, because the
+ * aggregate lives on an ancestor wrapper the selection is inside.
+ */
+export function visibleAncestors(
+  nodeId: string,
+  parentOf: ReadonlyMap<string, string | undefined>,
+  visibleIds: ReadonlySet<string>,
+): Set<string> {
+  const result = new Set<string>();
+  if (!parentOf.has(nodeId)) return result;
+  let current: string | undefined = nodeId;
+  while (current !== undefined) {
+    if (visibleIds.has(current)) result.add(current);
+    current = parentOf.get(current);
+  }
+  return result;
+}
+
 // A null byte can never appear in a real node id, so it's a safe separator
 // for the (from, to) dedup key without risk of collision with any id content.
 const KEY_SEP = "\0";

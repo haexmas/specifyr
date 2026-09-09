@@ -17,11 +17,7 @@ import {
   type FilePathResult,
   type HierarchyNode,
 } from "../composables/build-hierarchy.js";
-import {
-  aggregateEdges,
-  enclosingVisibleWrapper,
-  resolveVisibleEndpoint,
-} from "../composables/edge-aggregation.js";
+import { aggregateEdges, visibleAncestors } from "../composables/edge-aggregation.js";
 import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
 import { nodeTypeClasses } from "../composables/node-type-classes.js";
@@ -265,17 +261,17 @@ const flowEdges = computed<FlowEdge[]>(() => {
   if (!data.value?.edges) return [];
   const selectedId = selectedNode.value?.id;
   const visibleIds = new Set(flowNodes.value.map((n) => n.id));
-  // Both angles matter for dim-adjacency now that aggregation is two-tier:
-  // - `visibleSelectedId` matches intra-wrapper edges (raw ids preserved
-  //   when both endpoints live in the same expanded wrapper).
-  // - `selectedWrapper` matches cross-wrapper aggregate edges (which
-  //   carry the enclosing wrapper ids rather than the raw endpoint).
-  const visibleSelectedId = selectedId
-    ? resolveVisibleEndpoint(selectedId, parentOf.value, visibleIds)
-    : undefined;
-  const selectedWrapper = selectedId
-    ? enclosingVisibleWrapper(selectedId, parentOf.value, visibleIds)
-    : undefined;
+  // Selection-adjacency for aggregated edges: an edge is "adjacent to"
+  // the selection when its endpoint sits *anywhere* on the selection's
+  // visible ancestor chain — that catches both intra-wrapper edges
+  // (raw endpoints preserved, chain contains the selection itself) and
+  // cross-wrapper aggregates (endpoints are wrapper ids the selection
+  // is nested inside). Checking only the immediate parent misses every
+  // aggregate that lives further up the chain, dimming edges that in
+  // fact carry the selection's own imports.
+  const selectionChain = selectedId
+    ? visibleAncestors(selectedId, parentOf.value, visibleIds)
+    : new Set<string>();
   const aggregated = aggregateEdges(data.value.edges, parentOf.value, visibleIds);
   return aggregated.map((edge) => {
     // `AggregatedEdge` carries no `type` field on purpose: an aggregate can
@@ -289,10 +285,8 @@ const flowEdges = computed<FlowEdge[]>(() => {
     // `types: Set<string>`) before restoring per-type dim behavior.
     const dim =
       Boolean(selectedId) &&
-      edge.from !== visibleSelectedId &&
-      edge.to !== visibleSelectedId &&
-      edge.from !== selectedWrapper &&
-      edge.to !== selectedWrapper;
+      !selectionChain.has(edge.from) &&
+      !selectionChain.has(edge.to);
     return {
       id: edge.id,
       source: edge.from,

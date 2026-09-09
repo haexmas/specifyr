@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateEdges,
   resolveVisibleEndpoint,
+  visibleAncestors,
 } from "../../frontend/composables/edge-aggregation.js";
 
 /** Build a parent map from `{ child: parent | undefined }` pairs. */
@@ -231,5 +232,51 @@ describe("aggregateEdges", () => {
     const visibleIds = visible("utils", "utils/a.ts", "utils/b.ts");
     const result = aggregateEdges(edges, parents, visibleIds);
     expect(result).toEqual([{ id: "e1", from: "utils/a.ts", to: "utils/b.ts", count: 1 }]);
+  });
+});
+
+describe("visibleAncestors", () => {
+  it("returns just the id itself for a top-level visible id", () => {
+    const parents = parentMap({ root: undefined });
+    expect(visibleAncestors("root", parents, visible("root"))).toEqual(new Set(["root"]));
+  });
+
+  it("returns every visible id along the ancestor chain including the node itself", () => {
+    const parents = parentMap({
+      frontend: undefined,
+      composables: "frontend",
+      "useElkLayout.ts": "composables",
+      UseElkLayoutResult: "useElkLayout.ts",
+    });
+    const visibleIds = visible("frontend", "composables", "useElkLayout.ts", "UseElkLayoutResult");
+    expect(visibleAncestors("UseElkLayoutResult", parents, visibleIds)).toEqual(
+      new Set(["UseElkLayoutResult", "composables", "frontend", "useElkLayout.ts"]),
+    );
+  });
+
+  it("skips hidden ancestors in the chain but includes the visible ones above them", () => {
+    const parents = parentMap({
+      top: undefined,
+      mid: "top",
+      leaf: "mid",
+    });
+    // `mid` is hidden — but `top` (still visible) and `leaf` (still visible) count.
+    expect(visibleAncestors("leaf", parents, visible("top", "leaf"))).toEqual(
+      new Set(["top", "leaf"]),
+    );
+  });
+
+  it("returns an empty set when the id is unknown to parentOf", () => {
+    const parents = parentMap({ root: undefined });
+    expect(visibleAncestors("ghost", parents, visible("root"))).toEqual(new Set());
+  });
+
+  it("returns an empty set when no ancestor along the chain is visible", () => {
+    const parents = parentMap({
+      top: undefined,
+      mid: "top",
+      leaf: "mid",
+    });
+    expect(visibleAncestors("leaf", parents, visible())).toEqual(new Set());
   });
 });

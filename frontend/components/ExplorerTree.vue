@@ -34,7 +34,7 @@ function onFileClick(entry: HierarchyNode): void {
       <template v-if="entry.kind === 'folder'">
         <button
           type="button"
-          class="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-sm text-zinc-800 hover:bg-zinc-200"
+          class="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
           :aria-expanded="expandedIds.has(entry.id)"
           @click="onFolderClick(entry)"
         >
@@ -52,8 +52,8 @@ function onFileClick(entry: HierarchyNode): void {
       <button
         v-else
         type="button"
-        class="w-full truncate rounded px-1 py-0.5 pl-4 text-left text-sm text-zinc-800 hover:bg-zinc-200"
-        :class="entry.id === highlightedFileId ? 'bg-blue-500/20 text-blue-100 font-semibold' : ''"
+        class="w-full truncate rounded px-1 py-0.5 pl-4 text-left text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
+        :class="entry.id === highlightedFileId ? 'bg-primary text-primary-foreground font-semibold' : ''"
         :title="entry.label"
         @click="onFileClick(entry)"
       >

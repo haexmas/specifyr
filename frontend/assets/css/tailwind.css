@@ -1,44 +1,90 @@
 @import "tailwindcss";
 
 /*
- * Enable Tailwind v4 `dark:` variant against our `data-theme="dark"` root
- * attribute (default reacts to `prefers-color-scheme` only).
+ * Tailwind v4 `dark:` variant tracks our `data-theme="dark"` attribute.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * Palette override for dark mode. Tailwind v4 defines its palette as CSS
- * custom properties (`--color-zinc-100`, …). Redefining them under
- * `[data-theme="dark"]` flips every utility that references them without
- * touching a single template class. Zinc scale is inverted (light ↔ dark)
- * so chrome inherited from the original light design keeps working;
- * `white`, used for dialog / picker card backgrounds, flips to the same
- * slate mask as `--graph-mask`. Bespoke role/graph tokens defined below
- * this block override the specific canvas surfaces (`.wrapper-node`,
- * Vue Flow background) with the Archify palette.
+ * shadcn-vue base tokens (slate palette). Chrome uses `bg-background`,
+ * `text-foreground`, `text-muted-foreground`, `border-border`, `bg-accent`,
+ * `bg-popover`, etc. — same recipe you get out of `shadcn-vue init`. Dark
+ * flip is at `[data-theme="dark"]` below; single source of truth for the
+ * app's neutral colour scheme.
  */
-[data-theme="dark"] {
-  --color-white: #0f172a;
-  --color-zinc-50: #0f172a;
-  --color-zinc-100: #1e293b;
-  --color-zinc-200: #334155;
-  --color-zinc-300: #475569;
-  --color-zinc-400: #94a3b8;
-  --color-zinc-500: #cbd5e1;
-  --color-zinc-600: #e2e8f0;
-  --color-zinc-700: #e2e8f0;
-  --color-zinc-800: #f1f5f9;
-  --color-zinc-900: #f8fafc;
-  --color-zinc-950: #ffffff;
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+  }
+
+  [data-theme="dark"] {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
 }
 
 /*
- * Design tokens — role, graph, and delta variables shared across the editor.
- * Adopts the visual language from plans/005-visual-language-and-diff-views.md
- * Schnitt A verbatim (Archify MIT, © 2025 Cocoon AI, © 2026 tt-a1i;
- * https://github.com/tt-a1i/archify). Only the tokens land here; the custom
- * `RoleNode`/`RoleEdge` components and the shadcn-vue primitives that
- * consume the delta variables come in later Plan 005 slices.
+ * Canvas-specific tokens for the Vue Flow area (bg, grid dots, edge stroke,
+ * wrapper accent). Kept separate from the shadcn neutral scale so the
+ * diagram can drift in its own visual language later (Plan 005 role fills)
+ * without touching the chrome tokens.
  */
 @layer base {
   :root,
@@ -48,26 +94,6 @@
     --graph-arrow: #64748b;
     --graph-arrow-emphasis: #34d399;
     --graph-mask: #0f172a;
-
-    --role-frontend-fill: rgba(8, 51, 68, 0.4);
-    --role-frontend-stroke: #22d3ee;
-    --role-backend-fill: rgba(6, 78, 59, 0.4);
-    --role-backend-stroke: #34d399;
-    --role-database-fill: rgba(76, 29, 149, 0.4);
-    --role-database-stroke: #a78bfa;
-    --role-cloud-fill: rgba(120, 53, 15, 0.3);
-    --role-cloud-stroke: #fbbf24;
-    --role-external-fill: rgba(30, 41, 59, 0.5);
-    --role-external-stroke: #94a3b8;
-    --role-messagebus-fill: rgba(251, 146, 60, 0.3);
-    --role-messagebus-stroke: #fb923c;
-    --role-security-fill: rgba(136, 19, 55, 0.4);
-    --role-security-stroke: #fb7185;
-
-    --delta-add: #34d399;
-    --delta-remove: #fb7185;
-    --delta-change: #fbbf24;
-    --delta-same-opacity: 0.38;
   }
 
   [data-theme="light"] {
@@ -76,20 +102,5 @@
     --graph-arrow: #94a3b8;
     --graph-arrow-emphasis: #059669;
     --graph-mask: #ffffff;
-
-    --role-frontend-fill: rgba(34, 211, 238, 0.15);
-    --role-frontend-stroke: #0891b2;
-    --role-backend-fill: rgba(52, 211, 153, 0.18);
-    --role-backend-stroke: #059669;
-    --role-database-fill: rgba(167, 139, 250, 0.2);
-    --role-database-stroke: #7c3aed;
-    --role-cloud-fill: rgba(251, 191, 36, 0.18);
-    --role-cloud-stroke: #d97706;
-    --role-external-fill: rgba(148, 163, 184, 0.18);
-    --role-external-stroke: #64748b;
-    --role-messagebus-fill: rgba(251, 146, 60, 0.15);
-    --role-messagebus-stroke: #ea580c;
-    --role-security-fill: rgba(251, 113, 133, 0.15);
-    --role-security-stroke: #e11d48;
   }
 }

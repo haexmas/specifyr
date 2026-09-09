@@ -119,9 +119,30 @@ const matchIds = computed<Set<string>>(
 // unmount to avoid setting state after the component is gone.
 const matchHighlightId = ref<string | undefined>(undefined);
 let matchHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+// Tracks whether we're still mounted. The setTimeout below is created
+// inside a `nextTick` callback, so if the component unmounts between
+// scheduling and the callback running, `onBeforeUnmount` sees no timer
+// yet and can't clean it up. The flag lets the nextTick callback skip
+// scheduling entirely after unmount.
+let matchHighlightMounted = true;
 
 onBeforeUnmount(() => {
+  matchHighlightMounted = false;
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
+});
+
+// View-local UI state resets on repo/view change too — otherwise a
+// pending pulse from a previous search would silently fire on any
+// wrapper of the new view that happens to share an id with the previous
+// match. Declared here (not merged into the expandedIds reset above) so
+// this closure references matchHighlightTimer/matchHighlightId after
+// they are declared.
+watch([repoPath, view], () => {
+  if (matchHighlightTimer) {
+    clearTimeout(matchHighlightTimer);
+    matchHighlightTimer = undefined;
+  }
+  matchHighlightId.value = undefined;
 });
 
 function onNodeClick({ node }: NodeMouseEvent): void {
@@ -165,6 +186,11 @@ function onSearchSubmit(): void {
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
   matchHighlightId.value = undefined;
   void nextTick(() => {
+    // Guard against scheduling a timer on an unmounted component: the
+    // nextTick microtask can win the race against `onBeforeUnmount`,
+    // where matchHighlightTimer is still undefined at teardown time
+    // and would otherwise be created afterwards with no owner.
+    if (!matchHighlightMounted) return;
     matchHighlightId.value = highlightId;
     matchHighlightTimer = setTimeout(() => {
       matchHighlightId.value = undefined;

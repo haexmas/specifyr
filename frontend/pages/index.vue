@@ -113,6 +113,17 @@ const matchIds = computed<Set<string>>(
   () => new Set(matches.value.map((n) => n.id)),
 );
 
+// Transient marker so the match's owning file wrapper can pulse once
+// after Enter. Cleared by a setTimeout so it never lingers into an
+// unrelated selection change. Both timer and ref are torn down on
+// unmount to avoid setting state after the component is gone.
+const matchHighlightId = ref<string | undefined>(undefined);
+let matchHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+
+onBeforeUnmount(() => {
+  if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
+});
+
 function onNodeClick({ node }: NodeMouseEvent): void {
   if (node.data?.kind === "folder" || node.data?.kind === "file") {
     if (expandedCanvasIds.has(node.id)) expandedCanvasIds.delete(node.id);
@@ -137,13 +148,20 @@ function onPaneClick(): void {
 function onSearchSubmit(): void {
   const first = matches.value[0];
   if (!first) return;
-  // Selecting the match triggers the `selectionFilePath` watcher, which
-  // adds every ancestor folder id to both `expandedFolderIds` and
-  // `expandedCanvasIds`. No `fitView` — the flow layout guarantees that
-  // expanding a wrapper never moves anything left/above of it, so the
-  // user's eye stays anchored; the user pans over to the newly-visible
-  // match wrapper themselves. See PR #28.
   selectedNodeId.value = first.id;
+  // The pulse lands on the *file wrapper* that owns the match, not
+  // the raw match id — matches can be symbols, and symbol nodes are
+  // only visible when the user then clicks the file wrapper open.
+  // Highlighting the wrapper works for both file matches (wrapper IS
+  // the match) and symbol matches (wrapper is where the symbol lives).
+  const owner = findFilePath(hierarchy.value, first.id);
+  const highlightId = owner?.fileId ?? first.id;
+  matchHighlightId.value = highlightId;
+  if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
+  matchHighlightTimer = setTimeout(() => {
+    matchHighlightId.value = undefined;
+    matchHighlightTimer = undefined;
+  }, 1600);
 }
 
 const selectionFilePath = computed<FilePathResult | undefined>(() => {
@@ -212,7 +230,13 @@ const flowNodes = computed<FlowNode[]>(() => {
             width: `${entryLayout.width}px`,
             height: `${entryLayout.height}px`,
           },
-          class: `wrapper-node ${expanded ? "wrapper-expanded" : "wrapper-collapsed"}`,
+          class: [
+            "wrapper-node",
+            expanded ? "wrapper-expanded" : "wrapper-collapsed",
+            entry.id === matchHighlightId.value ? "wrapper-highlight" : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
           selectable: entry.selectable,
           parentNode: entryLayout.parentId ?? undefined,
           extent: entryLayout.parentId ? ("parent" as const) : undefined,
@@ -727,5 +751,22 @@ function shortenPath(value: string, max = 48): string {
   padding: 0.5rem;
   text-align: center;
   font-size: 0.75rem;
+}
+/* Two-cycle pulse used by Slice 5's search-Enter to mark the match's
+   owning file wrapper without moving the camera. Ring colour is a
+   softened `--graph-arrow` so it reads on both themes. Duration/count
+   picked to catch the eye without becoming a distraction (2 × 800 ms
+   ≈ 1.6 s, matches the timer that clears `matchHighlightId`). */
+@keyframes wrapper-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--graph-arrow), transparent 40%);
+  }
+}
+.wrapper-node.wrapper-highlight.vue-flow__node-default {
+  animation: wrapper-pulse 800ms ease-out 2;
 }
 </style>

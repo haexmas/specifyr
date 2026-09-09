@@ -1,6 +1,6 @@
 import type { Node } from "specifyr";
 import { describe, expect, it } from "vitest";
-import { buildHierarchy } from "../../frontend/composables/build-hierarchy.js";
+import { buildHierarchy, findFilePath } from "../../frontend/composables/build-hierarchy.js";
 
 /** Create a module node for hierarchy tests. */
 function makeModule(path: string, id: string): Node {
@@ -174,5 +174,76 @@ describe("buildHierarchy", () => {
     const orphan = makeSymbol("sym-orphan", "Orphan", undefined);
     const result = buildHierarchy([zzzMod, orphan]);
     expect(result.map((e) => e.label)).toEqual(["zzz", "(no folder)"]);
+  });
+});
+
+describe("findFilePath", () => {
+  it("resolves a root-level file directly (no enclosing folder)", () => {
+    const mod = makeModule("index.ts", "mod-index");
+    const hierarchy = buildHierarchy([mod]);
+    expect(findFilePath(hierarchy, "mod-index")).toEqual({
+      folderIds: [],
+      fileId: "mod-index",
+    });
+  });
+
+  it("resolves a file nested one folder deep with that one folder id", () => {
+    const mod = makeModule("src/util.ts", "mod-util");
+    const hierarchy = buildHierarchy([mod]);
+    expect(findFilePath(hierarchy, "mod-util")).toEqual({
+      folderIds: ["folder:src"],
+      fileId: "mod-util",
+    });
+  });
+
+  it("resolves a file nested 3+ folders deep with every intermediate folder id, top-to-bottom", () => {
+    const mod = makeModule("src/extractors/typescript/parser.ts", "mod-parser");
+    const hierarchy = buildHierarchy([mod]);
+    expect(findFilePath(hierarchy, "mod-parser")).toEqual({
+      folderIds: ["folder:src", "folder:src/extractors", "folder:src/extractors/typescript"],
+      fileId: "mod-parser",
+    });
+  });
+
+  it("resolves a symbol id to its owning file's id, not the symbol's own id", () => {
+    const mod = makeModule("src/service.ts", "mod-service");
+    const symbol = makeSymbol("sym-alpha", "Alpha", "src/service.ts");
+    const hierarchy = buildHierarchy([mod, symbol]);
+    expect(findFilePath(hierarchy, "sym-alpha")).toEqual({
+      folderIds: ["folder:src"],
+      fileId: "mod-service",
+    });
+  });
+
+  it("resolves a virtual (non-selectable) file directly, same as a real file", () => {
+    const symbol = makeSymbol("sym-widget", "Widget", "src/widget.ts");
+    const hierarchy = buildHierarchy([symbol]);
+    expect(findFilePath(hierarchy, "file:src/widget.ts")).toEqual({
+      folderIds: ["folder:src"],
+      fileId: "file:src/widget.ts",
+    });
+  });
+
+  it("resolves a pathless symbol under the synthetic (no folder)/(no file) bucket", () => {
+    const symbol = makeSymbol("sym-orphan", "Orphan", undefined);
+    const hierarchy = buildHierarchy([symbol]);
+    // Derive the synthesized ids from the built hierarchy itself rather than
+    // re-deriving the internal "\0no-path" sentinel literal in this test.
+    const noFolder = hierarchy[0];
+    const noFile = noFolder?.children[0];
+    expect(findFilePath(hierarchy, "sym-orphan")).toEqual({
+      folderIds: [noFolder?.id],
+      fileId: noFile?.id,
+    });
+  });
+
+  it("returns undefined for a node id that doesn't exist anywhere in the hierarchy", () => {
+    const mod = makeModule("index.ts", "mod-index");
+    const hierarchy = buildHierarchy([mod]);
+    expect(findFilePath(hierarchy, "does-not-exist")).toBeUndefined();
+  });
+
+  it("returns undefined for an empty hierarchy", () => {
+    expect(findFilePath([], "anything")).toBeUndefined();
   });
 });

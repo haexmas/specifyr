@@ -114,7 +114,8 @@ Interpretation je Vergleichs-Paar (kognitiv, kein Code-Unterschied):
   + optional Light reichen für v1.
 - **Motion/Animations** aus Archify (Trace, Story Trail, Guided Play).
 - **Signaturebene der `changed`-Erkennung.** Erste Runde: `changed` wenn Node-Id
-  gleich, aber irgendein anderes Feld (`name`, `type`, `path`, `classes`) unterschiedlich.
+  gleich, aber irgendein anderes Feld (`name`, `type`, `path`, `description`,
+  `role`, `classes`) unterschiedlich.
   Feinere Diffs pro Attribut später.
 - **Persistenz der aktuellen Perspektive/Vergleich-Auswahl** (bleibt nur im
   Runtime-State; kein `localStorage`).
@@ -355,15 +356,17 @@ mit `/40` moduliert. Faithful zu Archify > Token-Minimalismus.
     * scanner would miss it and no CSS would ship for those utilities.
     */
    export const ROLE_CLASSES: Record<NodeRole, string> = {
-     frontend:   "bg-role-frontend-fill border-role-frontend-stroke text-role-frontend-stroke",
-     backend:    "bg-role-backend-fill border-role-backend-stroke text-role-backend-stroke",
-     database:   "bg-role-database-fill border-role-database-stroke text-role-database-stroke",
-     cloud:      "bg-role-cloud-fill border-role-cloud-stroke text-role-cloud-stroke",
-     external:   "bg-role-external-fill border-role-external-stroke text-role-external-stroke",
-     messagebus: "bg-role-messagebus-fill border-role-messagebus-stroke text-role-messagebus-stroke",
-     security:   "bg-role-security-fill border-role-security-stroke text-role-security-stroke",
+     frontend:   "bg-role-frontend-fill border-role-frontend-stroke",
+     backend:    "bg-role-backend-fill border-role-backend-stroke",
+     database:   "bg-role-database-fill border-role-database-stroke",
+     cloud:      "bg-role-cloud-fill border-role-cloud-stroke",
+     external:   "bg-role-external-fill border-role-external-stroke",
+     messagebus: "bg-role-messagebus-fill border-role-messagebus-stroke",
+     security:   "bg-role-security-fill border-role-security-stroke",
    };
    ```
+   Die Labels verwenden stattdessen `text-foreground`, damit sie sich mit dem
+   Theme drehen; die Rollenidentität bleibt im Fill-/Border-Paar.
 4. **`RoleNode.vue`.** Vue-Flow-Custom-Node — pure Tailwind-Utilities, kein
    inline-style, kein scoped `<style>`:
    ```vue
@@ -379,7 +382,7 @@ mit `/40` moduliert. Faithful zu Archify > Token-Minimalismus.
 
    <template>
      <div
-       class="rounded-md border-2 px-3 py-2 text-sm font-medium"
+       class="role-node rounded-md border-2 px-3 py-2 text-sm font-medium text-foreground"
        :class="roleClasses"
        :data-role="role"
        :data-delta-state="data.deltaState ?? 'same'"
@@ -411,9 +414,10 @@ mit `/40` moduliert. Faithful zu Archify > Token-Minimalismus.
 7. **Bundle-Guard nachziehen.** In
    [tests/cli/editor-ist-integration.test.ts](../tests/cli/editor-ist-integration.test.ts)
    den Tailwind-Sanity-Check anpassen: die alten `bg-blue-100` / `bg-purple-100`
-   Klassen (aus `nodeTypeClasses`) sind weg; stattdessen auf eine der neuen
-   role-classes prüfen, z.B. `bg-role-frontend-fill` oder
-   `border-role-backend-stroke`. Kommentar aktualisieren.
+   Klassen (aus `nodeTypeClasses`) sind weg; stattdessen beide neuen
+   role-classes prüfen — `bg-role-frontend-fill` und
+   `border-role-backend-stroke` — auch wenn Nuxt sie auf getrennte CSS-Bundles
+   verteilt.
 8. **Verifikation:**
    ```bash
    pnpm typecheck && pnpm lint && pnpm test
@@ -558,6 +562,16 @@ mit `/40` moduliert. Faithful zu Archify > Token-Minimalismus.
        expect(d.nodes.get("a")).toBe("changed");
      });
 
+     it("marks nodes differing only in role as changed", () => {
+       const base = m([
+         { id: "a", type: "component", name: "A", role: "backend", classes: [] },
+       ]);
+       const candidate = m([
+         { id: "a", type: "component", name: "A", role: "database", classes: [] },
+       ]);
+       expect(diffModels(base, candidate).nodes.get("a")).toBe("changed");
+     });
+
      it("diffs edges by id", () => {
        const base = m([], [{ id: "e1", from: "a", to: "b", type: "imports" }]);
        const cand = m([], [{ id: "e2", from: "a", to: "b", type: "imports" }]);
@@ -579,7 +593,7 @@ mit `/40` moduliert. Faithful zu Archify > Token-Minimalismus.
      edges: Map<string, DeltaState>;
    }
 
-   const COMPARED_NODE_FIELDS = ["type", "name", "path", "description"] as const;
+   const COMPARED_NODE_FIELDS = ["type", "name", "path", "description", "role"] as const;
 
    function nodesDiffer(a: Node, b: Node): boolean {
      for (const key of COMPARED_NODE_FIELDS) {
@@ -726,8 +740,10 @@ und Edges (neu). Farben aus den Tokens von Schnitt A.
      .role-node[data-delta-state="changed"] { border-color: var(--delta-change) !important; border-style: dotted; border-width: 3px; }
      .vue-flow[data-view="diff"] .role-node[data-delta-state="same"] { opacity: var(--delta-same-opacity); }
 
-     /* Edges: styled via SVG stroke in RoleEdge.vue, but we keep the same-opacity rule here. */
-     .vue-flow[data-view="diff"] .vue-flow__edge[data-delta-state="same"] { opacity: var(--delta-same-opacity); }
+     /* Edges: styled via SVG stroke in RoleEdge.vue. BaseEdge forwards the
+        data attribute to its rendered path, so target that path instead of
+        the Vue Flow wrapper (which does not promote arbitrary edge data). */
+     .vue-flow[data-view="diff"] .vue-flow__edge .vue-flow__edge-path[data-delta-state="same"] { opacity: var(--delta-same-opacity); }
    }
    ```
 2. **`RoleEdge.vue`.** Custom-Edge, die aus `data.deltaState` Stroke/Dasharray ableitet:
@@ -737,7 +753,7 @@ und Edges (neu). Farben aus den Tokens von Schnitt A.
    import { BaseEdge, getBezierPath, type EdgeProps } from "@vue-flow/core";
 
    const props = defineProps<EdgeProps>();
-   const [path] = getBezierPath(props);
+   const path = computed(() => getBezierPath(props)[0]);
    const stroke = computed(() => {
      switch (props.data?.deltaState) {
        case "added":   return "var(--delta-add)";
@@ -760,6 +776,7 @@ und Edges (neu). Farben aus den Tokens von Schnitt A.
        :id="id"
        :path="path"
        :style="{ stroke, strokeWidth: data?.deltaState && data.deltaState !== 'same' ? 3 : 1.5, strokeDasharray: dashArray }"
+       :data-delta-state="data?.deltaState ?? 'same'"
      />
    </template>
    ```

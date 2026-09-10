@@ -104,19 +104,17 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsElk).toBe(true);
 
-    // Tailwind sanity check: the CSS bundle should contain at least one of the
+    // Tailwind sanity check: the CSS bundles should contain both sentinel
     // role utilities we ship via ROLE_CLASSES (Plan 005 Schnitt B). A
     // regression that dropped @tailwindcss/vite would ship the page unstyled;
     // a regression that reverted to the old bg-blue-100/bg-purple-100 pair
     // would slip past this check but is caught by the node-role test suite.
     const cssBundles = readdirSync(PUBLIC_NUXT).filter((n) => n.endsWith(".css"));
-    const anyMentionsTailwindColor = cssBundles.some((name) => {
-      const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return (
-        content.includes("bg-role-frontend-fill") || content.includes("border-role-backend-stroke")
-      );
-    });
-    expect(anyMentionsTailwindColor).toBe(true);
+    const cssContents = cssBundles.map((name) => readFileSync(resolve(PUBLIC_NUXT, name), "utf8"));
+    const allRoleUtilitiesEmitted = ["bg-role-frontend-fill", "border-role-backend-stroke"].every(
+      (utility) => cssContents.some((content) => content.includes(utility)),
+    );
+    expect(allRoleUtilitiesEmitted).toBe(true);
 
     // Selection sanity check: the details-sidebar copy plus Vue Flow's
     // selection wiring must both survive into the JS bundle. A regression

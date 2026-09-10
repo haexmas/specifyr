@@ -137,10 +137,9 @@
 /*
  * Role tokens for the graph's semantic node colors. Hand-picked from
  * Archify's web-app.html (MIT, © 2025 Cocoon AI, © 2026 tt-a1i). Fill
- * and stroke are two distinct colors per role — same values for dark
- * and light theme for now (Plan 005 Schnitt B chose faithful-to-source
- * over per-theme variance; a light-theme pass can override the `-fill`
- * values later if the rgba(...) alphas turn out to be too dark on white).
+ * and stroke are two distinct colors per role. Dark keeps the faithful
+ * Archify-inspired source values; light overrides the fills below so the
+ * semantic foreground text remains readable on the light canvas.
  */
 @layer base {
   :root,
@@ -164,5 +163,15 @@
     --delta-add: #34d399;
     --delta-remove: #fb7185;
     --delta-change: #fbbf24;
+  }
+
+  [data-theme="light"] {
+    --role-frontend-fill: #cffafe;
+    --role-backend-fill: #d1fae5;
+    --role-database-fill: #ede9fe;
+    --role-cloud-fill: #fef3c7;
+    --role-external-fill: #e2e8f0;
+    --role-messagebus-fill: #ffedd5;
+    --role-security-fill: #ffe4e6;
   }
 }

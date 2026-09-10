@@ -140,19 +140,53 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsNeighbors).toBe(true);
 
-    // Search sanity check: the header input placeholder and Vue Flow's
-    // camera-fit call must both survive into the JS bundle. A regression
-    // that dropped the search input or the fitView jump would silently
-    // ship an editor that can only be traversed by clicking — this
-    // catches that.
+    // Search sanity check: the header input placeholder AND the
+    // match-highlight class token must both survive into the JS bundle.
+    // Slice 5 removed the fitView jump on Enter (camera stays put; only
+    // the ancestor wrappers auto-expand and the match's file wrapper
+    // pulses once). A regression that dropped the search input or
+    // silently reintroduced fitView would break either the visible input
+    // or the "no camera teleport" invariant — this catches both.
     const anyMentionsSearch = bundles.some((name) => {
       const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return (
-        content.includes("Search nodes") &&
-        (content.includes("fitView") || content.includes("fit-view"))
-      );
+      return content.includes("Search nodes") && content.includes("wrapper-highlight");
     });
     expect(anyMentionsSearch).toBe(true);
+
+    // Camera-stability guard: application code must not call fitView any
+    // more. PR #28 removed the click/select-side call; Slice 5 removed the
+    // search-side one. Any reintroduction is a regression against the
+    // "flow layout is the eye's anchor" design decision. Checked at source
+    // level rather than the bundle, because Vue Flow's own core (which we
+    // still bundle) legitimately exposes and internally calls `fitView` —
+    // the string is unavoidable in shipped JS. Scan all authored frontend
+    // sources so the guard cannot be bypassed by moving the call out of the
+    // page component. Comments are stripped first so explanatory text does
+    // not trip the guard.
+    const frontendRoot = resolve(process.cwd(), "frontend");
+    const frontendSourceRoots = [
+      "app.vue",
+      "nuxt.config.ts",
+      "components",
+      "composables",
+      "pages",
+      "server",
+    ];
+    const frontendSources = frontendSourceRoots
+      .flatMap((sourceRoot) => {
+        const root = resolve(frontendRoot, sourceRoot);
+        if (/\.(?:ts|vue)$/.test(sourceRoot)) return [readFileSync(root, "utf8")];
+        return readdirSync(root, { recursive: true })
+          .filter((name): name is string => typeof name === "string" && /\.(?:ts|vue)$/.test(name))
+          .map((name) => readFileSync(resolve(root, name), "utf8"));
+      })
+      .join("\n");
+    const frontendCode = frontendSources
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    expect(frontendCode).not.toMatch(/\bfitView\s*\(/);
+    expect(frontendCode).not.toMatch(/\buseVueFlow\b/);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

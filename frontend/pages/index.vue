@@ -5,7 +5,6 @@ import {
   type Edge as FlowEdge,
   MarkerType,
   type NodeMouseEvent,
-  useVueFlow,
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import type { Model, Node } from "specifyr";
@@ -58,8 +57,6 @@ watch(
   },
   { immediate: true },
 );
-
-const { fitView } = useVueFlow();
 
 const hierarchy = computed<HierarchyNode[]>(() => buildHierarchy(data.value?.nodes ?? []));
 const parentOf = computed<Map<string, string | undefined>>(() =>
@@ -116,6 +113,46 @@ const matchIds = computed<Set<string>>(
   () => new Set(matches.value.map((n) => n.id)),
 );
 
+// Transient marker so the match's owning file wrapper can pulse once
+// after Enter. Cleared by a setTimeout so it never lingers into an
+// unrelated selection change. Both timer and ref are torn down on
+// unmount to avoid setting state after the component is gone.
+const matchHighlightId = ref<string | undefined>(undefined);
+let matchHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+// Generation token guards the rAF/setTimeout chain started by
+// `onSearchSubmit`. Every new submit, every repo/view change, and
+// unmount bumps this counter. Each callback captures its own generation
+// on entry and bails if the counter has moved on — so a pending chain
+// that's still walking rAF frames can't restore `matchHighlightId`
+// after a reset, and a stale timer can't clear a newer pulse. Cheaper
+// than storing rAF handles just to cancel them.
+let pulseGeneration = 0;
+// Tracks whether we're still mounted. Kept as a separate flag (rather
+// than folded into `pulseGeneration`) because the generation check also
+// bails on view/repo changes where the component is still alive.
+let matchHighlightMounted = true;
+
+onBeforeUnmount(() => {
+  matchHighlightMounted = false;
+  pulseGeneration++;
+  if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
+});
+
+// View-local UI state resets on repo/view change too — otherwise a
+// pending pulse from a previous search would silently fire on any
+// wrapper of the new view that happens to share an id with the previous
+// match. Declared here (not merged into the expandedIds reset above) so
+// this closure references matchHighlightTimer/matchHighlightId after
+// they are declared.
+watch([repoPath, view], () => {
+  pulseGeneration++;
+  if (matchHighlightTimer) {
+    clearTimeout(matchHighlightTimer);
+    matchHighlightTimer = undefined;
+  }
+  matchHighlightId.value = undefined;
+});
+
 function onNodeClick({ node }: NodeMouseEvent): void {
   if (node.data?.kind === "folder" || node.data?.kind === "file") {
     if (expandedCanvasIds.has(node.id)) expandedCanvasIds.delete(node.id);
@@ -141,7 +178,47 @@ function onSearchSubmit(): void {
   const first = matches.value[0];
   if (!first) return;
   selectedNodeId.value = first.id;
-  void fitView({ nodes: [first.id], duration: 400, padding: 0.3 });
+  // The pulse lands on the *file wrapper* that owns the match, not
+  // the raw match id — matches can be symbols, and symbol nodes are
+  // only visible when the user then clicks the file wrapper open.
+  // Highlighting the wrapper works for both file matches (wrapper IS
+  // the match) and symbol matches (wrapper is where the symbol lives).
+  const owner = findFilePath(hierarchy.value, first.id);
+  const highlightId = owner?.fileId ?? first.id;
+  // Re-apply the ancestor expansion on every Enter. If the user collapsed
+  // the folders after the previous submit, `selectedNodeId` may not change,
+  // so the selectionFilePath watcher would not run again.
+  for (const folderId of owner?.folderIds ?? []) {
+    expandedFolderIds.add(folderId);
+    expandedCanvasIds.add(folderId);
+  }
+  // Repeated Enter on the same match must re-fire the pulse animation.
+  // If we set `matchHighlightId` to the same value it already holds,
+  // Vue skips the re-render, the `wrapper-highlight` class never comes
+  // off, and CSS doesn't restart the keyframe. Clear it, then re-add
+  // separated by a paint boundary so the browser observes both states.
+  // Vue's `nextTick` is a microtask and can run before the next paint,
+  // meaning class-off + class-on can land in the same rendering
+  // opportunity and CSS never restarts the keyframe. Two nested
+  // `requestAnimationFrame` calls guarantee at least one paint between
+  // the removal and the re-addition. `matchHighlightMounted` and
+  // `pulseGeneration` guards keep a still-walking chain from acting
+  // after unmount, after a view/repo change, or after a newer submit.
+  const generation = ++pulseGeneration;
+  if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
+  matchHighlightId.value = undefined;
+  requestAnimationFrame(() => {
+    if (!matchHighlightMounted || generation !== pulseGeneration) return;
+    requestAnimationFrame(() => {
+      if (!matchHighlightMounted || generation !== pulseGeneration) return;
+      matchHighlightId.value = highlightId;
+      matchHighlightTimer = setTimeout(() => {
+        if (generation !== pulseGeneration) return;
+        matchHighlightId.value = undefined;
+        matchHighlightTimer = undefined;
+      }, 1600);
+    });
+  });
 }
 
 const selectionFilePath = computed<FilePathResult | undefined>(() => {
@@ -210,7 +287,13 @@ const flowNodes = computed<FlowNode[]>(() => {
             width: `${entryLayout.width}px`,
             height: `${entryLayout.height}px`,
           },
-          class: `wrapper-node ${expanded ? "wrapper-expanded" : "wrapper-collapsed"}`,
+          class: [
+            "wrapper-node",
+            expanded ? "wrapper-expanded" : "wrapper-collapsed",
+            entry.id === matchHighlightId.value ? "wrapper-highlight" : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
           selectable: entry.selectable,
           parentNode: entryLayout.parentId ?? undefined,
           extent: entryLayout.parentId ? ("parent" as const) : undefined,
@@ -725,5 +808,22 @@ function shortenPath(value: string, max = 48): string {
   padding: 0.5rem;
   text-align: center;
   font-size: 0.75rem;
+}
+/* Two-cycle pulse used by Slice 5's search-Enter to mark the match's
+   owning file wrapper without moving the camera. Ring colour is a
+   softened `--graph-arrow` so it reads on both themes. Duration/count
+   picked to catch the eye without becoming a distraction (2 × 800 ms
+   ≈ 1.6 s, matches the timer that clears `matchHighlightId`). */
+@keyframes wrapper-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--graph-arrow), transparent 40%);
+  }
+}
+.wrapper-node.wrapper-highlight.vue-flow__node-default {
+  animation: wrapper-pulse 800ms ease-out 2;
 }
 </style>

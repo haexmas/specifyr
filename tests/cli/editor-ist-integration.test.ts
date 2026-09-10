@@ -140,19 +140,31 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsNeighbors).toBe(true);
 
-    // Search sanity check: the header input placeholder and Vue Flow's
-    // camera-fit call must both survive into the JS bundle. A regression
-    // that dropped the search input or the fitView jump would silently
-    // ship an editor that can only be traversed by clicking — this
-    // catches that.
+    // Search sanity check: the header input placeholder AND the
+    // match-highlight class token must both survive into the JS bundle.
+    // Slice 5 removed the fitView jump on Enter (camera stays put; only
+    // the ancestor wrappers auto-expand and the match's file wrapper
+    // pulses once). A regression that dropped the search input or
+    // silently reintroduced fitView would break either the visible input
+    // or the "no camera teleport" invariant — this catches both.
     const anyMentionsSearch = bundles.some((name) => {
       const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return (
-        content.includes("Search nodes") &&
-        (content.includes("fitView") || content.includes("fit-view"))
-      );
+      return content.includes("Search nodes") && content.includes("wrapper-highlight");
     });
     expect(anyMentionsSearch).toBe(true);
+
+    // Camera-stability guard: the editor page must not itself call
+    // fitView any more. PR #28 removed the click/select-side call;
+    // Slice 5 removed the search-side one. Any reintroduction is a
+    // regression against the "flow layout is the eye's anchor" design
+    // decision. Checked at the source level rather than the bundle,
+    // because Vue Flow's own core (which we still bundle) legitimately
+    // exposes and internally calls `fitView` — the string is
+    // unavoidable in shipped JS. The `useVueFlow` import is the entry
+    // point user code needs to reach `fitView`, so we forbid that too.
+    const pageSource = readFileSync(resolve(process.cwd(), "frontend/pages/index.vue"), "utf8");
+    expect(pageSource).not.toMatch(/\bfitView\s*\(/);
+    expect(pageSource).not.toMatch(/\buseVueFlow\b/);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

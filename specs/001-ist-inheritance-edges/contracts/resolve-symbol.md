@@ -4,7 +4,7 @@ Public module signature for the new symbol-resolution layer. Consumed by `src/ex
 
 ```ts
 export interface SymbolIndex {
-  /** Node id of the symbol exported as `exportedName` from `filePath`, or undefined. */
+  /** Node id of an exported class/interface, including an in-repository re-export, or undefined. */
   get(filePath: string, exportedName: string): string | undefined;
 }
 
@@ -21,7 +21,9 @@ export interface FileImportIndex {
  * Priority order (matches TypeScript's own scoping):
  *   1. `sameFileSymbols.get(targetName)` → return that.
  *   2. Else if `fileImports.get(targetName)` returns a binding → look up via
- *      `symbolIndex.get(binding.targetFile, binding.exportedName)`.
+ *      `symbolIndex.get(binding.targetFile, binding.exportedName)`. The index
+ *      follows in-repository re-exports transitively, including aliases, with
+ *      a visited set so re-export cycles resolve to undefined rather than loop.
  *   3. Else return undefined.
  *
  * @param fromRelative Repo-relative file path where the reference lives.
@@ -48,6 +50,9 @@ export function resolveSymbol(
 | Class extends imported target that resolves in `symbolIndex` | Returns target node id via `fileImports.get(target).exportedName` |
 | Class extends imported target with alias (`import { A as B }`, `extends B`) | Resolves `B` locally → `A` in target file |
 | Class extends imported target whose target file has no such export | Returns undefined |
+| Class extends target through a transitive or aliased in-repository re-export | Returns the final exported class/interface node id |
+| Class extends target through a cyclic re-export chain | Returns undefined without looping |
+| Import resolves to a private declaration or a function, enum, or type-alias | Returns undefined |
 | Class extends identifier that is neither same-file nor imported | Returns undefined |
 | Class extends target that is both same-file AND imported | Returns SAME-FILE (locals shadow imports per TS semantics) |
 

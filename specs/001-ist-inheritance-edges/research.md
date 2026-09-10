@@ -55,12 +55,12 @@ The `Edge` interface accepts arbitrary type strings (`src/core/schemas.ts:50`: `
 
 ## R3: Cross-file symbol resolution mechanics
 
-**Decision**: build two indices once (after pass 1, before pass 3), then per-record lookup with the priority order `same-file locals > imported names > drop`.
+**Decision**: build the export and same-file indices once (after pass 1, before pass 3), then per-record lookup with the priority order `same-file locals > imported names > drop`. Each raw record carries the exact source node id, so duplicate-named declarations cannot be conflated.
 
 **Rationale**:
-- **Symbol index** — `Map<filePath, Map<exportedName, nodeId>>`. Built by iterating `allNodes` where `type !== "module"` (i.e., top-level declarations). Every such node has both `path` (= its file) and `name` (= its exported identifier), so this is a straight-forward group + collect.
-- **Per-file import binding index** — `Map<filePath, Map<localName, {targetFile, exportedName}>>`. Built by iterating pass-1 `RawImport`s: for each import's `bindings` (see R4), resolve its `specifier` via the existing `resolveImport`; if the specifier resolves to a repo file, add every binding as `localName → {targetFile, exportedName}` in the file's inner map. If the specifier doesn't resolve (external package), skip its bindings — they can't produce in-repo inheritance edges.
-- **Same-file locals index** — `Map<localName, nodeId>` derived on demand for each file being processed (filter `allNodes` by `path === filePath`, map `name → id`).
+- **Symbol index** — `Map<filePath, Map<exportedName, nodeId>>`. Precomputed once by iterating pass-1 declarations and retaining only exported `class` / `interface` nodes. Private declarations and `module`, `function`, `enum`, and `type-alias` nodes are excluded, so an import cannot resolve to an unsupported or private target.
+- **Per-file import binding index** — `Map<filePath, Map<localName, {targetFile, exportedName}>>`. Built by iterating pass-1 `RawImport`s: for each import's `bindings` (see R4), resolve its `specifier` via the existing `resolveImport`; if the specifier resolves to a repo file, add every binding as `localName → {targetFile, exportedName}` in the file's inner map. If the specifier doesn't resolve (external package), skip its bindings — they can't produce in-repo inheritance edges. When resolving a binding, follow `export { Name as Alias } from "./next"` and equivalent local re-exports transitively, preserving aliases and using a visited `(filePath, exportedName)` set to terminate cycles.
+- **Same-file locals index** — precomputed once as `Map<filePath, Map<localName, nodeId>>`, retaining only `class` / `interface` nodes. Pass 3 reuses the inner map for each file rather than filtering `allNodes` per file. Raw inheritance records carry `fromNodeId`; source resolution uses that id directly, while the name map is used only for target lookup. Add fixtures for duplicate-named sources and for function, enum, and type-alias targets to prove they are excluded.
 
 Priority order rationale: TypeScript's own resolution shadows imports with same-scope declarations. `class Foo {}; class Bar extends Foo {}` where `Foo` is also imported means the local `Foo` wins. This matches the language semantics; getting it wrong would emit misleading edges.
 

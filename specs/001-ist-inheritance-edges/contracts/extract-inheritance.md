@@ -8,7 +8,9 @@ import type { Tree } from "web-tree-sitter";
 export interface RawInheritance {
   /** Repo-relative file path of the file declaring the deriving symbol. */
   relativePath: string;
-  /** The declared name of the class or interface that has the clause. */
+  /** Stable node id of the exact class or interface that has the clause. */
+  fromNodeId: string;
+  /** The declared name, retained for diagnostics and fixture readability. */
   fromSymbolName: string;
   /** Identifier being extended or implemented, with generic wrappers stripped. */
   targetName: string;
@@ -47,7 +49,7 @@ export function extractInheritanceFromTree(
 
 | Input snippet | Expected emitted records |
 |---|---|
-| `class Foo extends Bar {}` | 1 × `{fromSymbolName: "Foo", targetName: "Bar", edgeType: "extends"}` |
+| `class Foo extends Bar {}` | 1 × `{fromNodeId: <Foo node id>, fromSymbolName: "Foo", targetName: "Bar", edgeType: "extends"}` |
 | `class Foo implements A, B {}` | 2 × implements (targets `"A"`, `"B"`), 0 extends |
 | `class Foo extends Bar implements A {}` | 1 extends (`"Bar"`) + 1 implements (`"A"`) |
 | `abstract class Foo extends Bar {}` | Same as non-abstract |

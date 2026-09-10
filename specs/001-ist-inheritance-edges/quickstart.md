@@ -13,7 +13,7 @@ This is the smoke-test procedure once `/speckit-implement` finishes. It exercise
 1. In a shell: `curl -s http://127.0.0.1:3939/api/ist | jq '.edges | map(select(.type == "extends" or .type == "implements")) | length'`
 2. Expected: a positive integer (matches the number of local inheritance edges the repo has).
 3. Sample-inspect one edge: `curl -s http://127.0.0.1:3939/api/ist | jq '.edges | map(select(.type == "extends"))[0]'` — its `from` and `to` must both look like `ts-<hex>` symbol ids (not module ids).
-4. Confirm regression-free: `jq '.edges | map(select(.type == "imports")) | length'` still matches the pre-feature import count.
+4. Confirm regression-free: `curl -s http://127.0.0.1:3939/api/ist | jq '.edges | map(select(.type == "imports")) | length'` still matches the pre-feature import count.
 
 ## Story 2 — traverse hierarchies from the sidebar
 

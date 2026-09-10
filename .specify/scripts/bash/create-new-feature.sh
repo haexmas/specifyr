@@ -47,6 +47,10 @@ while [ $i -le $# ]; do
                 echo 'Error: --number requires a value' >&2
                 exit 1
             fi
+            if ! [[ "$next_arg" =~ ^[0-9]+$ ]]; then
+                echo 'Error: --number must be an unsigned decimal number' >&2
+                exit 1
+            fi
             BRANCH_NUMBER="$next_arg"
             ;;
         --timestamp)
@@ -83,8 +87,9 @@ if [ -z "$FEATURE_DESCRIPTION" ]; then
     exit 1
 fi
 
-# Trim whitespace and validate description is not empty (e.g., user passed only whitespace)
-FEATURE_DESCRIPTION=$(echo "$FEATURE_DESCRIPTION" | xargs)
+# Trim surrounding whitespace and validate description is not empty (e.g., user passed only whitespace)
+FEATURE_DESCRIPTION="${FEATURE_DESCRIPTION#"${FEATURE_DESCRIPTION%%[![:space:]]*}"}"
+FEATURE_DESCRIPTION="${FEATURE_DESCRIPTION%"${FEATURE_DESCRIPTION##*[![:space:]]}"}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
     echo "Error: Feature description cannot be empty or contain only whitespace" >&2
     exit 1

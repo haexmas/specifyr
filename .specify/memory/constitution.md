@@ -1,32 +1,32 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# specifyr Constitution
+
+**Version**: 1.0.0 | **Ratified**: 2026-09-11 | **Status**: Active
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Graph-first authoring (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Before authoring a new named function, class, component, store, module, or CLI command, consult the project's Graphify knowledge graph and prefer extending an existing candidate. Borderline or overlapping candidates require operator review before authoring.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Contract-preserving extraction
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+IST extraction must preserve stable node and edge identities, remain deterministic across repeated runs, and silently omit relationships that cannot be resolved within the walked repository. Changes to public model shapes require updated contracts and regression coverage.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Test-first delivery
+
+Behavior changes begin with focused failing tests, followed by the smallest implementation that makes them pass and a full regression run. Tests must cover supported inputs, rejected or unresolved inputs, and compatibility with existing imports and UI behavior.
+
+### IV. Safe automation
+
+Repository-controlled workflows may propose actions, but state-changing commands require explicit user confirmation. Extension hooks must use trusted registered commands and verifiable capability scopes; invalid, unregistered, or ambiguous requests are skipped without execution.
+
+### V. Reviewable simplicity
+
+Prefer the smallest cohesive change that satisfies the specification. Keep decisions and assumptions in the relevant design documents, avoid speculative abstractions, and require review before merging changes that affect extraction correctness or automation safety.
+
+## Governance
+
+This constitution governs SpecKit workflows and feature planning in specifyr. Amendments require a documented rationale, an updated version and ratification date, and review of affected templates, workflows, and active plans. Higher-priority repository and platform safety requirements remain binding.
 
 ## [SECTION_2_NAME]
 <!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->

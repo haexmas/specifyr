@@ -109,7 +109,7 @@ Looking at the canvas without selecting anything, the user can visually tell inh
 - **SC-001**: 100% of inheritance relationships whose target is same-file-local OR named-imported from another file inside the same repository appear as edges in the extracted model. Relationships whose target is out-of-scope per the Edge Cases section (namespace-qualified, default-import-aliased, external package, unknown identifier) produce no edge — by construction, not by omission.
 - **SC-002**: After selecting any class or interface in the editor, a user can identify its parent(s), its children, and its interface-implementation partners (in either direction) without opening any additional tool, file, or side channel.
 - **SC-003**: The set of edges produced by the extractor for a repository is stable across runs — repeated extraction of the same repository produces identical edge lists modulo ordering (verified by running the extractor twice on the same fixture in the test suite).
-- **SC-004**: A user scanning the canvas at typical zoom can visually tell an `extends` edge apart from an `implements` edge apart from an `imports` edge within 1 second of looking at any given edge.
+- **SC-004**: For the fixed Story 3 fixture used by T021, at the viewport and zoom recorded in the quickstart, every single-type `extends` aggregate uses the solid style, every single-type `implements` aggregate uses the dashed `6 4` style, every single-type `imports` aggregate retains the existing imports style, and every mixed-type aggregate uses the imports fallback style. T015 and T017 assert these mappings programmatically; the manual smoke test confirms the rendered result.
 
 ## Assumptions
 

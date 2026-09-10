@@ -35,7 +35,8 @@ Pure data record produced by `extractInheritance*`. Consumed by the resolution p
 | Field | Type | Notes |
 |---|---|---|
 | `relativePath` | string | The file the deriving symbol lives in. |
-| `fromSymbolName` | string | The name of the class or interface declaring the clause. Same value that ends up as the `name` field on the source node. |
+| `fromNodeId` | string | Stable id of the exact class or interface declaration that owns the clause, generated with the same duplicate-name suffix rules as `extractSourceFromTree`. This is the source identity used during resolution; it prevents same-named declarations from being conflated. |
+| `fromSymbolName` | string | The declaration name, retained for diagnostics and fixture readability. It is not used to select the source node. |
 | `targetName` | string | The identifier being extended or implemented, with generic wrappers stripped (`Base<T>` → `"Base"`). Namespace-qualified targets (`Foo.Bar`) never enter this record — they are dropped by the extractor. |
 | `edgeType` | `"extends"` \| `"implements"` | Which relationship this record represents. |
 
@@ -62,7 +63,7 @@ Built once after pass 1, before pass 3. Not persisted.
 
 | Field | Type | Notes |
 |---|---|---|
-| `get(filePath, exportedName)` | `string \| undefined` | Returns the node id of the symbol exported as `exportedName` from `filePath`, if any. Backed by `Map<filePath, Map<exportedName, nodeId>>`. |
+| `get(filePath, exportedName)` | `string \| undefined` | Returns the node id of an exported class or interface named `exportedName` from `filePath`, if any. Backed by `Map<filePath, Map<exportedName, nodeId>>`; private declarations and `module`, `function`, `enum`, and `type-alias` nodes are never indexed. Export visibility is captured during pass 1 from the declaration's export modifier or equivalent source metadata. |
 
 ### FileImportIndex
 
@@ -70,13 +71,13 @@ Built once per file, on demand during pass 3. Not persisted.
 
 | Field | Type | Notes |
 |---|---|---|
-| `get(localName)` | `{targetFile, exportedName} \| undefined` | Returns the target file + exported-name pair the local name is bound to in this file, if it's an import. |
+| `get(localName)` | `{targetFile, exportedName} \| undefined` | Returns the target file + exported-name pair the local name is bound to in this file, if it's an import. The subsequent `SymbolIndex` lookup follows in-repository re-export bindings transitively, including aliases, with a visited set to stop cycles. |
 
 ### SameFileSymbols
 
 Built once per file being resolved during pass 3. Not persisted.
 
-Simple `ReadonlyMap<string, string>` (local symbol name → local node id) — no wrapper type.
+Simple `ReadonlyMap<string, string>` (local class/interface symbol name → local node id) — no wrapper type. It includes private same-file declarations, but only `class` and `interface` nodes; all other node kinds are excluded. The source side of each record is selected by `RawInheritance.fromNodeId`, never by this map's name lookup.
 
 ## New relationships in the emitted Model
 
@@ -107,12 +108,14 @@ Pass 2 — resolve imports:                           [existing, no change]
   │
   ▼
 Pass 3 — resolve inheritance:                       [NEW]
-  Build SymbolIndex from allNodes                   (once)
+  Build SymbolIndex once from exported class/interface nodes only
+  Precompute SameFileSymbols: Map<filePath, Map<name, nodeId>> once
   For each file:
     Build FileImportIndex from that file's imports  (once per file)
-    Build SameFileSymbols from that file's nodes    (once per file)
+    Reuse that file's precomputed class/interface locals
     For each RawInheritance in that file:
-      resolveSymbol(...)  → toId | undefined
+      take fromId directly from RawInheritance.fromNodeId
+      resolveSymbol(relativePath, targetName, ...) → toId | undefined
       Skip if undefined or toId === fromId
       Dedupe by (fromId, toId, edgeType)
       Emit Edge (type: "extends" | "implements")

@@ -40,17 +40,18 @@ describe("ROLE_CLASSES", () => {
     }
   });
 
-  it("gives every role a bg-, border- and text- utility for the same role", () => {
-    // Guards against a regression that silently drops one of the three
+  it("gives every role both a bg-fill and a border-stroke utility for the same role", () => {
+    // Guards against a regression that silently drops one of the two
     // (e.g. keeps border color but loses the fill), which would produce
-    // an unstyled or half-styled node.
+    // an unstyled or half-styled node. Text color deliberately isn't part
+    // of ROLE_CLASSES — RoleNode.vue uses shadcn's `text-foreground` so
+    // labels stay readable on both themes.
     for (const role of NODE_ROLES) {
       const classes = ROLE_CLASSES[role];
       expect(classes, `role: ${role} bg`).toMatch(new RegExp(`\\bbg-role-${role}-fill\\b`));
       expect(classes, `role: ${role} border`).toMatch(
         new RegExp(`\\bborder-role-${role}-stroke\\b`),
       );
-      expect(classes, `role: ${role} text`).toMatch(new RegExp(`\\btext-role-${role}-stroke\\b`));
     }
   });
 });

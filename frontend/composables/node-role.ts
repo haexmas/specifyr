@@ -21,12 +21,16 @@ export function nodeRole(node: Pick<Node, "type" | "role">): NodeRole {
 // tailwind.css's `@theme inline` block). Do NOT compose the class string
 // dynamically (e.g. `bg-role-${role}-fill`) — Tailwind's static scanner
 // would miss it and no CSS would ship for those utilities.
+// Role text color is intentionally NOT in the class list: stroke colors
+// like `#22d3ee` (frontend cyan) read fine on the dark translucent fill
+// but poorly on a light-theme white background. RoleNode.vue applies
+// `text-foreground` (a shadcn token that flips with the theme) instead.
 export const ROLE_CLASSES: Record<NodeRole, string> = {
-  frontend: "bg-role-frontend-fill border-role-frontend-stroke text-role-frontend-stroke",
-  backend: "bg-role-backend-fill border-role-backend-stroke text-role-backend-stroke",
-  database: "bg-role-database-fill border-role-database-stroke text-role-database-stroke",
-  cloud: "bg-role-cloud-fill border-role-cloud-stroke text-role-cloud-stroke",
-  external: "bg-role-external-fill border-role-external-stroke text-role-external-stroke",
-  messagebus: "bg-role-messagebus-fill border-role-messagebus-stroke text-role-messagebus-stroke",
-  security: "bg-role-security-fill border-role-security-stroke text-role-security-stroke",
+  frontend: "bg-role-frontend-fill border-role-frontend-stroke",
+  backend: "bg-role-backend-fill border-role-backend-stroke",
+  database: "bg-role-database-fill border-role-database-stroke",
+  cloud: "bg-role-cloud-fill border-role-cloud-stroke",
+  external: "bg-role-external-fill border-role-external-stroke",
+  messagebus: "bg-role-messagebus-fill border-role-messagebus-stroke",
+  security: "bg-role-security-fill border-role-security-stroke",
 };

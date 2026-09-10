@@ -1,0 +1,59 @@
+# Contract: `src/extractors/typescript/resolve-symbol.ts`
+
+Public module signature for the new symbol-resolution layer. Consumed by `src/extractors/typescript/extract.ts` (pass 3, per raw-inheritance record). Unit-tested in isolation via `tests/extractors/typescript/resolve-symbol.test.ts`.
+
+```ts
+export interface SymbolIndex {
+  /** Node id of the symbol exported as `exportedName` from `filePath`, or undefined. */
+  get(filePath: string, exportedName: string): string | undefined;
+}
+
+export interface FileImportIndex {
+  /** Import binding for `localName` in this file, or undefined if not imported. */
+  get(localName: string):
+    | { targetFile: string; exportedName: string }
+    | undefined;
+}
+
+/**
+ * Resolve an inheritance target identifier to a node id.
+ *
+ * Priority order (matches TypeScript's own scoping):
+ *   1. `sameFileSymbols.get(targetName)` → return that.
+ *   2. Else if `fileImports.get(targetName)` returns a binding → look up via
+ *      `symbolIndex.get(binding.targetFile, binding.exportedName)`.
+ *   3. Else return undefined.
+ *
+ * @param fromRelative Repo-relative file path where the reference lives.
+ *                     Used for clarity in resolution failures (not for lookups).
+ * @param targetName   The identifier as it appears in the heritage clause.
+ * @param fileImports  Import bindings for `fromRelative` (already resolved).
+ * @param symbolIndex  Global (filePath, exportedName) → nodeId lookup.
+ * @param sameFileSymbols  Local name → local node id for `fromRelative`.
+ */
+export function resolveSymbol(
+  fromRelative: string,
+  targetName: string,
+  fileImports: FileImportIndex,
+  symbolIndex: SymbolIndex,
+  sameFileSymbols: ReadonlyMap<string, string>,
+): string | undefined;
+```
+
+## Behavior contract (must hold for all inputs)
+
+| Scenario | Expected |
+|---|---|
+| Same-file class extends locally-declared parent | Returns local node id from `sameFileSymbols` |
+| Class extends imported target that resolves in `symbolIndex` | Returns target node id via `fileImports.get(target).exportedName` |
+| Class extends imported target with alias (`import { A as B }`, `extends B`) | Resolves `B` locally → `A` in target file |
+| Class extends imported target whose target file has no such export | Returns undefined |
+| Class extends identifier that is neither same-file nor imported | Returns undefined |
+| Class extends target that is both same-file AND imported | Returns SAME-FILE (locals shadow imports per TS semantics) |
+
+## Non-contract
+
+- Does not walk trees or parse source.
+- Does not know about `RawInheritance` — takes a bare `targetName` string.
+- Does not decide whether an edge should be emitted (`extract.ts` does that, including the `fromId === toId` self-loop check).
+- Does not maintain any cross-invocation state.

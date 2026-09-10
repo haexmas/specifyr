@@ -120,10 +120,10 @@ const matchIds = computed<Set<string>>(
 const matchHighlightId = ref<string | undefined>(undefined);
 let matchHighlightTimer: ReturnType<typeof setTimeout> | undefined;
 // Tracks whether we're still mounted. The setTimeout below is created
-// inside a `nextTick` callback, so if the component unmounts between
-// scheduling and the callback running, `onBeforeUnmount` sees no timer
-// yet and can't clean it up. The flag lets the nextTick callback skip
-// scheduling entirely after unmount.
+// inside a `requestAnimationFrame` callback chain, so if the component
+// unmounts between scheduling and the callback running, `onBeforeUnmount`
+// sees no timer yet and can't clean it up. The flag lets each rAF
+// callback bail out cleanly after unmount.
 let matchHighlightMounted = true;
 
 onBeforeUnmount(() => {
@@ -180,22 +180,27 @@ function onSearchSubmit(): void {
   // Repeated Enter on the same match must re-fire the pulse animation.
   // If we set `matchHighlightId` to the same value it already holds,
   // Vue skips the re-render, the `wrapper-highlight` class never comes
-  // off, and CSS doesn't restart the keyframe. Clear it first, then
-  // re-apply on the next tick — that guarantees a fresh class toggle
-  // and therefore a fresh animation cycle.
+  // off, and CSS doesn't restart the keyframe. Clear it, then re-add
+  // separated by a paint boundary so the browser observes both states.
+  // Vue's `nextTick` is a microtask and can run before the next paint,
+  // meaning class-off + class-on can land in the same rendering
+  // opportunity and CSS never restarts the keyframe. Two nested
+  // `requestAnimationFrame` calls guarantee at least one paint between
+  // the removal and the re-addition. The `matchHighlightMounted` guard
+  // stays intact — the rAF callbacks can win the race against
+  // `onBeforeUnmount` just like the old `nextTick` variant could.
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
   matchHighlightId.value = undefined;
-  void nextTick(() => {
-    // Guard against scheduling a timer on an unmounted component: the
-    // nextTick microtask can win the race against `onBeforeUnmount`,
-    // where matchHighlightTimer is still undefined at teardown time
-    // and would otherwise be created afterwards with no owner.
+  requestAnimationFrame(() => {
     if (!matchHighlightMounted) return;
-    matchHighlightId.value = highlightId;
-    matchHighlightTimer = setTimeout(() => {
-      matchHighlightId.value = undefined;
-      matchHighlightTimer = undefined;
-    }, 1600);
+    requestAnimationFrame(() => {
+      if (!matchHighlightMounted) return;
+      matchHighlightId.value = highlightId;
+      matchHighlightTimer = setTimeout(() => {
+        matchHighlightId.value = undefined;
+        matchHighlightTimer = undefined;
+      }, 1600);
+    });
   });
 }
 

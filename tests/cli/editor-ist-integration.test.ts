@@ -153,25 +153,43 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsSearch).toBe(true);
 
-    // Camera-stability guard: the editor page must not itself call
-    // fitView any more. PR #28 removed the click/select-side call;
-    // Slice 5 removed the search-side one. Any reintroduction is a
-    // regression against the "flow layout is the eye's anchor" design
-    // decision. Checked at the source level rather than the bundle,
-    // because Vue Flow's own core (which we still bundle) legitimately
-    // exposes and internally calls `fitView` — the string is
-    // unavoidable in shipped JS. The `useVueFlow` import is the entry
-    // point user code needs to reach `fitView`, so we forbid that too.
-    // Comments are stripped first: a future explanatory comment
-    // mentioning `useVueFlow` or `fitView()` (e.g. "no fitView() here
-    // any more") must not trip the guard.
-    const pageSource = readFileSync(resolve(process.cwd(), "frontend/pages/index.vue"), "utf8");
-    const pageCode = pageSource
+    // Camera-stability guard: application code must not call fitView any
+    // more. PR #28 removed the click/select-side call; Slice 5 removed the
+    // search-side one. Any reintroduction is a regression against the
+    // "flow layout is the eye's anchor" design decision. Checked at source
+    // level rather than the bundle, because Vue Flow's own core (which we
+    // still bundle) legitimately exposes and internally calls `fitView` —
+    // the string is unavoidable in shipped JS. Scan all authored frontend
+    // sources so the guard cannot be bypassed by moving the call out of the
+    // page component. Comments are stripped first so explanatory text does
+    // not trip the guard.
+    const frontendRoot = resolve(process.cwd(), "frontend");
+    const frontendSourceRoots = [
+      "app.vue",
+      "nuxt.config.ts",
+      "components",
+      "composables",
+      "pages",
+      "server",
+    ];
+    const frontendSources = frontendSourceRoots
+      .flatMap((sourceRoot) => {
+        const root = resolve(frontendRoot, sourceRoot);
+        if (/\.(?:ts|vue)$/.test(sourceRoot)) return [readFileSync(root, "utf8")];
+        return readdirSync(root, { recursive: true })
+          .filter(
+            (name): name is string =>
+              typeof name === "string" && /\.(?:ts|vue)$/.test(name),
+          )
+          .map((name) => readFileSync(resolve(root, name), "utf8"));
+      })
+      .join("\n");
+    const frontendCode = frontendSources
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/<!--[\s\S]*?-->/g, "")
       .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-    expect(pageCode).not.toMatch(/\bfitView\s*\(/);
-    expect(pageCode).not.toMatch(/\buseVueFlow\b/);
+    expect(frontendCode).not.toMatch(/\bfitView\s*\(/);
+    expect(frontendCode).not.toMatch(/\buseVueFlow\b/);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

@@ -185,6 +185,13 @@ function onSearchSubmit(): void {
   // the match) and symbol matches (wrapper is where the symbol lives).
   const owner = findFilePath(hierarchy.value, first.id);
   const highlightId = owner?.fileId ?? first.id;
+  // Re-apply the ancestor expansion on every Enter. If the user collapsed
+  // the folders after the previous submit, `selectedNodeId` may not change,
+  // so the selectionFilePath watcher would not run again.
+  for (const folderId of owner?.folderIds ?? []) {
+    expandedFolderIds.add(folderId);
+    expandedCanvasIds.add(folderId);
+  }
   // Repeated Enter on the same match must re-fire the pulse animation.
   // If we set `matchHighlightId` to the same value it already holds,
   // Vue skips the re-render, the `wrapper-highlight` class never comes

@@ -119,15 +119,22 @@ const matchIds = computed<Set<string>>(
 // unmount to avoid setting state after the component is gone.
 const matchHighlightId = ref<string | undefined>(undefined);
 let matchHighlightTimer: ReturnType<typeof setTimeout> | undefined;
-// Tracks whether we're still mounted. The setTimeout below is created
-// inside a `requestAnimationFrame` callback chain, so if the component
-// unmounts between scheduling and the callback running, `onBeforeUnmount`
-// sees no timer yet and can't clean it up. The flag lets each rAF
-// callback bail out cleanly after unmount.
+// Generation token guards the rAF/setTimeout chain started by
+// `onSearchSubmit`. Every new submit, every repo/view change, and
+// unmount bumps this counter. Each callback captures its own generation
+// on entry and bails if the counter has moved on — so a pending chain
+// that's still walking rAF frames can't restore `matchHighlightId`
+// after a reset, and a stale timer can't clear a newer pulse. Cheaper
+// than storing rAF handles just to cancel them.
+let pulseGeneration = 0;
+// Tracks whether we're still mounted. Kept as a separate flag (rather
+// than folded into `pulseGeneration`) because the generation check also
+// bails on view/repo changes where the component is still alive.
 let matchHighlightMounted = true;
 
 onBeforeUnmount(() => {
   matchHighlightMounted = false;
+  pulseGeneration++;
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
 });
 
@@ -138,6 +145,7 @@ onBeforeUnmount(() => {
 // this closure references matchHighlightTimer/matchHighlightId after
 // they are declared.
 watch([repoPath, view], () => {
+  pulseGeneration++;
   if (matchHighlightTimer) {
     clearTimeout(matchHighlightTimer);
     matchHighlightTimer = undefined;
@@ -186,17 +194,19 @@ function onSearchSubmit(): void {
   // meaning class-off + class-on can land in the same rendering
   // opportunity and CSS never restarts the keyframe. Two nested
   // `requestAnimationFrame` calls guarantee at least one paint between
-  // the removal and the re-addition. The `matchHighlightMounted` guard
-  // stays intact — the rAF callbacks can win the race against
-  // `onBeforeUnmount` just like the old `nextTick` variant could.
+  // the removal and the re-addition. `matchHighlightMounted` and
+  // `pulseGeneration` guards keep a still-walking chain from acting
+  // after unmount, after a view/repo change, or after a newer submit.
+  const generation = ++pulseGeneration;
   if (matchHighlightTimer) clearTimeout(matchHighlightTimer);
   matchHighlightId.value = undefined;
   requestAnimationFrame(() => {
-    if (!matchHighlightMounted) return;
+    if (!matchHighlightMounted || generation !== pulseGeneration) return;
     requestAnimationFrame(() => {
-      if (!matchHighlightMounted) return;
+      if (!matchHighlightMounted || generation !== pulseGeneration) return;
       matchHighlightId.value = highlightId;
       matchHighlightTimer = setTimeout(() => {
+        if (generation !== pulseGeneration) return;
         matchHighlightId.value = undefined;
         matchHighlightTimer = undefined;
       }, 1600);

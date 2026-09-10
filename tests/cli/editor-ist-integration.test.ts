@@ -162,9 +162,16 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     // exposes and internally calls `fitView` — the string is
     // unavoidable in shipped JS. The `useVueFlow` import is the entry
     // point user code needs to reach `fitView`, so we forbid that too.
+    // Comments are stripped first: a future explanatory comment
+    // mentioning `useVueFlow` or `fitView()` (e.g. "no fitView() here
+    // any more") must not trip the guard.
     const pageSource = readFileSync(resolve(process.cwd(), "frontend/pages/index.vue"), "utf8");
-    expect(pageSource).not.toMatch(/\bfitView\s*\(/);
-    expect(pageSource).not.toMatch(/\buseVueFlow\b/);
+    const pageCode = pageSource
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    expect(pageCode).not.toMatch(/\bfitView\s*\(/);
+    expect(pageCode).not.toMatch(/\buseVueFlow\b/);
 
     // Repo picker sanity check: the modal copy and the browse endpoint URL
     // must both survive into the JS bundle. A regression that dropped the

@@ -177,10 +177,7 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
         const root = resolve(frontendRoot, sourceRoot);
         if (/\.(?:ts|vue)$/.test(sourceRoot)) return [readFileSync(root, "utf8")];
         return readdirSync(root, { recursive: true })
-          .filter(
-            (name): name is string =>
-              typeof name === "string" && /\.(?:ts|vue)$/.test(name),
-          )
+          .filter((name): name is string => typeof name === "string" && /\.(?:ts|vue)$/.test(name))
           .map((name) => readFileSync(resolve(root, name), "utf8"));
       })
       .join("\n");

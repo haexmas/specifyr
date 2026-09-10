@@ -32,6 +32,35 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+
+  /*
+   * Role tokens hoisted from the `@layer base` block below into real
+   * Tailwind color utilities. Design language from Archify
+   * (MIT, © 2025 Cocoon AI, © 2026 tt-a1i). Two hand-picked colors per
+   * role (fill + stroke) — NOT one color with alpha modifiers, so we
+   * carry two tokens per role instead of collapsing them.
+   * Use as: `bg-role-frontend-fill`, `border-role-frontend-stroke`,
+   * `text-role-frontend-stroke`, etc.
+   */
+  --color-role-frontend-fill: var(--role-frontend-fill);
+  --color-role-frontend-stroke: var(--role-frontend-stroke);
+  --color-role-backend-fill: var(--role-backend-fill);
+  --color-role-backend-stroke: var(--role-backend-stroke);
+  --color-role-database-fill: var(--role-database-fill);
+  --color-role-database-stroke: var(--role-database-stroke);
+  --color-role-cloud-fill: var(--role-cloud-fill);
+  --color-role-cloud-stroke: var(--role-cloud-stroke);
+  --color-role-external-fill: var(--role-external-fill);
+  --color-role-external-stroke: var(--role-external-stroke);
+  --color-role-messagebus-fill: var(--role-messagebus-fill);
+  --color-role-messagebus-stroke: var(--role-messagebus-stroke);
+  --color-role-security-fill: var(--role-security-fill);
+  --color-role-security-stroke: var(--role-security-stroke);
+
+  /* Delta tokens for diff views (Plan 005 Schnitt D+F). */
+  --color-delta-add: var(--delta-add);
+  --color-delta-remove: var(--delta-remove);
+  --color-delta-change: var(--delta-change);
 }
 
 @layer base {
@@ -102,5 +131,47 @@
     --graph-arrow: #94a3b8;
     --graph-arrow-emphasis: #059669;
     --graph-mask: #ffffff;
+  }
+}
+
+/*
+ * Role tokens for the graph's semantic node colors. Hand-picked from
+ * Archify's web-app.html (MIT, © 2025 Cocoon AI, © 2026 tt-a1i). Fill
+ * and stroke are two distinct colors per role. Dark keeps the faithful
+ * Archify-inspired source values; light overrides the fills below so the
+ * semantic foreground text remains readable on the light canvas.
+ */
+@layer base {
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    --role-frontend-fill: rgba(8, 51, 68, 0.4);
+    --role-frontend-stroke: #22d3ee;
+    --role-backend-fill: rgba(6, 78, 59, 0.4);
+    --role-backend-stroke: #34d399;
+    --role-database-fill: rgba(76, 29, 149, 0.4);
+    --role-database-stroke: #a78bfa;
+    --role-cloud-fill: rgba(120, 53, 15, 0.3);
+    --role-cloud-stroke: #fbbf24;
+    --role-external-fill: rgba(30, 41, 59, 0.5);
+    --role-external-stroke: #94a3b8;
+    --role-messagebus-fill: rgba(251, 146, 60, 0.3);
+    --role-messagebus-stroke: #fb923c;
+    --role-security-fill: rgba(136, 19, 55, 0.4);
+    --role-security-stroke: #fb7185;
+
+    --delta-add: #34d399;
+    --delta-remove: #fb7185;
+    --delta-change: #fbbf24;
+  }
+
+  [data-theme="light"] {
+    --role-frontend-fill: #cffafe;
+    --role-backend-fill: #d1fae5;
+    --role-database-fill: #ede9fe;
+    --role-cloud-fill: #fef3c7;
+    --role-external-fill: #e2e8f0;
+    --role-messagebus-fill: #ffedd5;
+    --role-security-fill: #ffe4e6;
   }
 }

@@ -19,10 +19,12 @@ import {
 import { aggregateEdges, visibleAncestors } from "../composables/edge-aggregation.js";
 import { formatNodeDetails } from "../composables/format-node-details.js";
 import { type Neighbors, neighborsOf } from "../composables/neighbors.js";
-import { nodeTypeClasses } from "../composables/node-type-classes.js";
 import { matchNodes } from "../composables/search-nodes.js";
 import { useNestedElkLayout } from "../composables/useNestedElkLayout.js";
 import { useRepoPath } from "../composables/use-repo-path.js";
+import RoleNode from "../components/graph/RoleNode.vue";
+
+const nodeTypes = { role: markRaw(RoleNode) };
 import type { BrowseResult } from "../server/utils/browse.js";
 
 import "@vue-flow/core/dist/style.css";
@@ -309,14 +311,16 @@ const flowNodes = computed<FlowNode[]>(() => {
         const dimBySelection = hasSelection && !neighborIds.value.has(node.id);
         const dimBySearch = hasSearch && !matchIds.value.has(node.id);
         const dim = dimBySelection || dimBySearch;
-        const classes = ["soll-node", nodeTypeClasses(node.type)];
-        if (dim) classes.push("opacity-30");
+        // Custom `role` node type (RoleNode.vue) reads the whole node from
+        // data.node and picks its Tailwind color classes from the role map.
+        // `dim` gets pushed through so the same visual-affordance layer
+        // (opacity-30 on non-adjacent nodes) still fires under selection or
+        // search, without pages/index.vue owning any of the color decisions.
         const symbolNode = {
           id: node.id,
-          type: "default",
+          type: "role",
           position,
-          data: { label: `${node.name}\n(${node.type})` },
-          class: classes.join(" "),
+          data: { node, dim },
           selected: node.id === selectedId,
           parentNode: entryLayout.parentId ?? undefined,
           extent: entryLayout.parentId ? ("parent" as const) : undefined,
@@ -616,6 +620,7 @@ function shortenPath(value: string, max = 48): string {
         <VueFlow
           :nodes="flowNodes"
           :edges="flowEdges"
+          :node-types="nodeTypes"
           :nodes-draggable="false"
           :nodes-connectable="false"
           :elements-selectable="true"
@@ -779,17 +784,9 @@ function shortenPath(value: string, max = 48): string {
 <style>
 /* Vue Flow injects .vue-flow__node-default into a DOM subtree that our scoped
    styles can't reach. Keep this small — only what Vue Flow's default theme
-   overrides on our node element. Per-type colors come from the element's
-   class attribute (via nodeTypeClasses). */
-.soll-node.vue-flow__node-default {
-  border-radius: 0.5rem;
-  border-width: 1px;
-  padding: 0.5rem;
-  text-align: center;
-  font-size: 0.75rem;
-  white-space: pre-line;
-  min-width: 140px;
-}
+   overrides on the wrapper elements. Role-based symbol nodes render via the
+   `role` custom node type (RoleNode.vue) which owns its own Tailwind classes,
+   so no `.soll-node` overrides are needed any more. */
 .wrapper-node.vue-flow__node-default {
   border-radius: 0.5rem;
   border-width: 1px;

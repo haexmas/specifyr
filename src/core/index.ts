@@ -7,6 +7,8 @@ export {
   ModelMetaSchema,
   ModelSchema,
   NODE_ID_PATTERN,
+  NODE_ROLES,
+  NodeRoleSchema,
   NodeSchema,
 } from "./schemas.js";
 export type {
@@ -19,6 +21,7 @@ export type {
   ModelNode,
   ModelSource,
   Node,
+  NodeRole,
 } from "./schemas.js";
 
 export {

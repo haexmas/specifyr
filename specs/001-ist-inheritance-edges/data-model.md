@@ -63,7 +63,7 @@ Built once after pass 1, before pass 3. Not persisted.
 
 | Field | Type | Notes |
 |---|---|---|
-| `get(filePath, exportedName)` | `string \| undefined` | Returns the node id of an exported class or interface named `exportedName` from `filePath`, if any. Backed by `Map<filePath, Map<exportedName, nodeId>>`; private declarations and `module`, `function`, `enum`, and `type-alias` nodes are never indexed. Export visibility is captured during pass 1 from the declaration's export modifier or equivalent source metadata. |
+| `get(filePath, exportedName)` | `readonly string[]` | Returns all node ids of exported classes or interfaces named `exportedName` from `filePath`, in stable source order. Backed by `Map<filePath, Map<exportedName, nodeId[]>>`; private declarations and `module`, `function`, `enum`, and `type-alias` nodes are never indexed. Export visibility is captured during pass 1 from the declaration's export modifier or equivalent source metadata. Resolution emits a target only when the candidate list has exactly one entry; ambiguous duplicate exports are dropped rather than selecting arbitrarily. |
 
 ### FileImportIndex
 
@@ -77,7 +77,7 @@ Built once per file, on demand during pass 3. Not persisted.
 
 Built once per file being resolved during pass 3. Not persisted.
 
-Simple `ReadonlyMap<string, string>` (local class/interface symbol name → local node id) — no wrapper type. It includes private same-file declarations, but only `class` and `interface` nodes; all other node kinds are excluded. The source side of each record is selected by `RawInheritance.fromNodeId`, never by this map's name lookup.
+Simple `ReadonlyMap<string, readonly string[]>` (local class/interface symbol name → all matching local node ids) — no wrapper type. It includes private same-file declarations, but only `class` and `interface` nodes; all other node kinds are excluded. A same-file target is accepted only when its list has exactly one entry. The source side of each record is selected by `RawInheritance.fromNodeId`, never by this map's name lookup.
 
 ## New relationships in the emitted Model
 

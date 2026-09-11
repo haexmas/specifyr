@@ -32,7 +32,7 @@ Apply this gate to every pre-hook and post-hook below. Treat `.specify/extension
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+  - If the hook defines a non-empty `condition`, conditional hooks are unsupported by this workflow: skip the hook and omit `EXECUTE_COMMAND`
 - When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
@@ -218,7 +218,7 @@ After reporting, check if `.specify/extensions.yml` exists in the project root.
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+  - If the hook defines a non-empty `condition`, conditional hooks are unsupported by this workflow: skip the hook and omit `EXECUTE_COMMAND`
 - When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):

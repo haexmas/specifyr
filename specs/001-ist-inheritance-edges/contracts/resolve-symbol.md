@@ -4,8 +4,8 @@ Public module signature for the new symbol-resolution layer. Consumed by `src/ex
 
 ```ts
 export interface SymbolIndex {
-  /** Node id of an exported class/interface, including an in-repository re-export, or undefined. */
-  get(filePath: string, exportedName: string): string | undefined;
+  /** All node ids matching an exported class/interface name, including in-repository re-exports. */
+  get(filePath: string, exportedName: string): readonly string[];
 }
 
 export interface FileImportIndex {
@@ -19,7 +19,8 @@ export interface FileImportIndex {
  * Resolve an inheritance target identifier to a node id.
  *
  * Priority order (matches TypeScript's own scoping):
- *   1. `sameFileSymbols.get(targetName)` → return that.
+ *   1. `sameFileSymbols.get(targetName)` → return the sole candidate, if there
+ *      is exactly one; drop ambiguous names.
  *   2. Else if `fileImports.get(targetName)` returns a binding → look up via
  *      `symbolIndex.get(binding.targetFile, binding.exportedName)`. The index
  *      follows in-repository re-exports transitively, including aliases, with
@@ -30,15 +31,16 @@ export interface FileImportIndex {
  *                     Used for clarity in resolution failures (not for lookups).
  * @param targetName   The identifier as it appears in the heritage clause.
  * @param fileImports  Import bindings for `fromRelative` (already resolved).
- * @param symbolIndex  Global (filePath, exportedName) → nodeId lookup.
- * @param sameFileSymbols  Local name → local node id for `fromRelative`.
+ * @param symbolIndex  Global (filePath, exportedName) → all matching node ids lookup.
+ *                      Return a node id only when the result has exactly one candidate.
+ * @param sameFileSymbols  Local name → all matching local node ids for `fromRelative`.
  */
 export function resolveSymbol(
   fromRelative: string,
   targetName: string,
   fileImports: FileImportIndex,
   symbolIndex: SymbolIndex,
-  sameFileSymbols: ReadonlyMap<string, string>,
+  sameFileSymbols: ReadonlyMap<string, readonly string[]>,
 ): string | undefined;
 ```
 
@@ -48,6 +50,7 @@ export function resolveSymbol(
 |---|---|
 | Same-file class extends locally-declared parent | Returns local node id from `sameFileSymbols` |
 | Class extends imported target that resolves in `symbolIndex` | Returns target node id via `fileImports.get(target).exportedName` |
+| Class extends imported target with duplicate exported declarations | Returns undefined rather than selecting an arbitrary node |
 | Class extends imported target with alias (`import { A as B }`, `extends B`) | Resolves `B` locally → `A` in target file |
 | Class extends imported target whose target file has no such export | Returns undefined |
 | Class extends target through a transitive or aliased in-repository re-export | Returns the final exported class/interface node id |

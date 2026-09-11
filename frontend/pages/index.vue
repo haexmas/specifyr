@@ -93,7 +93,16 @@ const selectedNodeDetails = computed(() =>
 );
 
 const neighbors = computed<Neighbors>(() => {
-  if (!selectedNode.value || !data.value) return { imports: [], importedBy: [] };
+  if (!selectedNode.value || !data.value) {
+    return {
+      imports: [],
+      importedBy: [],
+      extends: [],
+      extendedBy: [],
+      implementsList: [],
+      implementedBy: [],
+    };
+  }
   return neighborsOf(selectedNode.value.id, data.value.nodes, data.value.edges);
 });
 
@@ -101,6 +110,10 @@ const neighborIds = computed<Set<string>>(() => {
   const s = new Set<string>();
   for (const n of neighbors.value.imports) s.add(n.id);
   for (const n of neighbors.value.importedBy) s.add(n.id);
+  for (const n of neighbors.value.extends) s.add(n.id);
+  for (const n of neighbors.value.extendedBy) s.add(n.id);
+  for (const n of neighbors.value.implementsList) s.add(n.id);
+  for (const n of neighbors.value.implementedBy) s.add(n.id);
   if (selectedNode.value) s.add(selectedNode.value.id);
   return s;
 });
@@ -353,19 +366,19 @@ const flowEdges = computed<FlowEdge[]>(() => {
     : new Set<string>();
   const aggregated = aggregateEdges(data.value.edges, parentOf.value, visibleIds);
   return aggregated.map((edge) => {
-    // `AggregatedEdge` carries no `type` field on purpose: an aggregate can
-    // collapse edges of mixed kinds and there's no single right answer.
-    // The pre-aggregation code short-circuited `dim` to false for every
-    // `imports` edge — since `imports` is the only shipped edge type today,
-    // no edge was ever dimmed under selection. Dropping that guard means
-    // every non-adjacent aggregate now dims like the symbol nodes do; the
-    // canvas reads more consistently under selection. When mixed edge
-    // types land, extend `AggregatedEdge` with a discriminator (likely
-    // `types: Set<string>`) before restoring per-type dim behavior.
     const dim =
       Boolean(selectedId) &&
       !selectionChain.has(edge.from) &&
       !selectionChain.has(edge.to);
+    // Single-type aggregates pick their type's style; mixed aggregates fall
+    // back to the imports style (FR-011a).
+    const style: Record<string, string | number> = {
+      stroke: "var(--graph-arrow)",
+      strokeWidth: 1.5,
+    };
+    if (edge.types.size === 1) {
+      if (edge.types.has("implements")) style.strokeDasharray = "6 4";
+    }
     return {
       id: edge.id,
       source: edge.from,
@@ -378,7 +391,7 @@ const flowEdges = computed<FlowEdge[]>(() => {
         width: 16,
         height: 16,
       },
-      style: { stroke: "var(--graph-arrow)", strokeWidth: 1.5 },
+      style,
       class: dim ? "opacity-20" : "",
     };
   });
@@ -677,6 +690,66 @@ function shortenPath(value: string, max = 48): string {
             </li>
           </ul>
           <p v-else class="text-xs text-muted-foreground">None</p>
+        </section>
+        <section v-if="selectedNode && neighbors.extends.length" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Extends ({{ neighbors.extends.length }})
+          </h3>
+          <ul class="space-y-0.5">
+            <li v-for="n in neighbors.extends" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
+                :title="n.name"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
+        </section>
+        <section v-if="selectedNode && neighbors.extendedBy.length" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Extended by ({{ neighbors.extendedBy.length }})
+          </h3>
+          <ul class="space-y-0.5">
+            <li v-for="n in neighbors.extendedBy" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
+                :title="n.name"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
+        </section>
+        <section v-if="selectedNode && neighbors.implementsList.length" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Implements ({{ neighbors.implementsList.length }})
+          </h3>
+          <ul class="space-y-0.5">
+            <li v-for="n in neighbors.implementsList" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
+                :title="n.name"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
+        </section>
+        <section v-if="selectedNode && neighbors.implementedBy.length" class="mt-4">
+          <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Implemented by ({{ neighbors.implementedBy.length }})
+          </h3>
+          <ul class="space-y-0.5">
+            <li v-for="n in neighbors.implementedBy" :key="n.id">
+              <button
+                type="button"
+                class="w-full truncate rounded px-1.5 py-0.5 text-left font-mono text-xs text-foreground hover:bg-accent"
+                :title="n.name"
+                @click="selectedNodeId = n.id"
+              >{{ n.name }}</button>
+            </li>
+          </ul>
         </section>
       </aside>
     </div>

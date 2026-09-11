@@ -7,6 +7,8 @@ export interface AggregatedEdge {
   to: string;
   /** Number of raw edges this aggregate represents (>= 1). */
   count: number;
+  /** Union of `Edge.type` values covered by this aggregate. Consumers pick styling from `size === 1`. */
+  types: Set<string>;
 }
 
 /**
@@ -62,6 +64,7 @@ interface Bucket {
   rawFrom: string;
   rawTo: string;
   count: number;
+  types: Set<string>;
 }
 
 /** Bottom-up ancestor chain (nodeId, parent, grandparent, ..., top-level). */
@@ -141,6 +144,7 @@ export function aggregateEdges(
     const existing = buckets.get(key);
     if (existing) {
       existing.count += 1;
+      existing.types.add(edge.type);
     } else {
       buckets.set(key, {
         from,
@@ -149,6 +153,7 @@ export function aggregateEdges(
         rawFrom: edge.from,
         rawTo: edge.to,
         count: 1,
+        types: new Set([edge.type]),
       });
     }
   }
@@ -162,6 +167,7 @@ export function aggregateEdges(
       from: bucket.from,
       to: bucket.to,
       count: bucket.count,
+      types: bucket.types,
     });
   }
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

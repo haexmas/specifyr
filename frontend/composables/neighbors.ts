@@ -3,16 +3,19 @@ import type { Edge, Node } from "specifyr";
 export interface Neighbors {
   imports: Node[];
   importedBy: Node[];
+  extends: Node[];
+  extendedBy: Node[];
+  /** `implements` is a reserved word in TS strict mode — field named `implementsList`. */
+  implementsList: Node[];
+  implementedBy: Node[];
 }
 
 /**
- * Direct (1-hop) import neighbors of a node.
+ * Direct (1-hop) neighbors of a node, bucketed by relationship type + direction.
  *
- * Only `type === "imports"` edges are considered. Dangling edges (endpoint
- * not present in `nodes`) and self-loops are silently skipped. Each list is
- * deduped by neighbor id and sorted by node `name` ascending.
- *
- * Runs in O(nodes + edges) — a `Map<string, Node>` is built once per call.
+ * Dangling edges (endpoint not present in `nodes`) and self-loops are silently
+ * skipped in every bucket. Each list is deduped by neighbor id and sorted by
+ * node `name` ascending. Unknown edge types contribute to no bucket.
  */
 export function neighborsOf(
   nodeId: string,
@@ -20,23 +23,49 @@ export function neighborsOf(
   edges: readonly Edge[],
 ): Neighbors {
   const byId = new Map<string, Node>();
-  for (const node of nodes) {
-    byId.set(node.id, node);
-  }
+  for (const node of nodes) byId.set(node.id, node);
 
-  if (!byId.has(nodeId)) {
-    return { imports: [], importedBy: [] };
-  }
+  const empty: Neighbors = {
+    imports: [],
+    importedBy: [],
+    extends: [],
+    extendedBy: [],
+    implementsList: [],
+    implementedBy: [],
+  };
+  if (!byId.has(nodeId)) return empty;
 
   const importIds = new Set<string>();
   const importedByIds = new Set<string>();
+  const extendsIds = new Set<string>();
+  const extendedByIds = new Set<string>();
+  const implementsIds = new Set<string>();
+  const implementedByIds = new Set<string>();
+
   for (const edge of edges) {
-    if (edge.type !== "imports") continue;
+    let outBucket: Set<string> | undefined;
+    let inBucket: Set<string> | undefined;
+    switch (edge.type) {
+      case "imports":
+        outBucket = importIds;
+        inBucket = importedByIds;
+        break;
+      case "extends":
+        outBucket = extendsIds;
+        inBucket = extendedByIds;
+        break;
+      case "implements":
+        outBucket = implementsIds;
+        inBucket = implementedByIds;
+        break;
+      default:
+        continue;
+    }
     if (edge.from === nodeId && edge.to !== nodeId && byId.has(edge.to)) {
-      importIds.add(edge.to);
+      outBucket.add(edge.to);
     }
     if (edge.to === nodeId && edge.from !== nodeId && byId.has(edge.from)) {
-      importedByIds.add(edge.from);
+      inBucket.add(edge.from);
     }
   }
 
@@ -53,5 +82,9 @@ export function neighborsOf(
   return {
     imports: toSortedNodes(importIds),
     importedBy: toSortedNodes(importedByIds),
+    extends: toSortedNodes(extendsIds),
+    extendedBy: toSortedNodes(extendedByIds),
+    implementsList: toSortedNodes(implementsIds),
+    implementedBy: toSortedNodes(implementedByIds),
   };
 }

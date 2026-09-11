@@ -25,7 +25,11 @@ const CLASS_LIKE = new Set(["class_declaration", "abstract_class_declaration"]);
 /** Convenience wrapper — parses `source` and walks its heritage clauses. */
 export async function extractInheritance(input: Input): Promise<RawInheritance[]> {
   const tree = await parseTypeScript(input.source);
-  return extractInheritanceFromTree(tree, input.relativePath);
+  try {
+    return extractInheritanceFromTree(tree, input.relativePath);
+  } finally {
+    tree.delete();
+  }
 }
 
 /** Walk an already-parsed tree and emit one `RawInheritance` per declared clause. */

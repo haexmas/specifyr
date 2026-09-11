@@ -53,7 +53,10 @@ indicator appears in the TopBar while ELK crunches larger graphs. Nodes are
 coloured by type: SOLL components stand out in blue, modules in green,
 external services in amber, data stores in pink; IST classes in purple,
 interfaces in indigo, type aliases in teal, enums in orange, functions in red.
-Extends/implements edges and per-symbol edges land in a later slice.
+Class hierarchies show as solid `extends` and dashed `implements` edges
+alongside the existing `imports`; the details sidebar lists them as
+separate Extends / Extended by / Implements / Implemented by sections.
+Per-symbol call edges land in a later slice.
 
 Or install globally (once published to npm) with `npm i -g specifyr`.
 

@@ -142,12 +142,22 @@ function analyzeFileSymbols(
   const exports = new Map<string, string[]>();
   const reExports = new Map<string, ReExport>();
   const nameOccurrences = new Map<string, number>();
+  // Source-less `export { X }` and `export { X as Y }` can appear before or
+  // after `X`'s declaration in the same file. Collect them here and resolve
+  // against `locals` once the walk completes.
+  const pendingLocalReExports: Array<{ exportedName: string; localName: string }> = [];
 
   for (const child of tree.rootNode.namedChildren) {
     if (!child) continue;
 
     if (child.type === "export_statement") {
-      collectReExports(child, relativePath, fileSet, reExports);
+      const exportClause = child.namedChildren.find((c) => c?.type === "export_clause");
+      const sourceString = child.namedChildren.find((c) => c?.type === "string");
+      if (exportClause && sourceString) {
+        collectCrossFileReExports(exportClause, sourceString, relativePath, fileSet, reExports);
+      } else if (exportClause) {
+        collectLocalReExports(exportClause, pendingLocalReExports);
+      }
     }
 
     const declaration = unwrapExport(child);
@@ -169,19 +179,22 @@ function analyzeFileSymbols(
     }
   }
 
+  for (const pending of pendingLocalReExports) {
+    const localIds = locals.get(pending.localName);
+    if (!localIds) continue;
+    for (const id of localIds) pushIntoMap(exports, pending.exportedName, id);
+  }
+
   return { locals, exports, reExports };
 }
 
-function collectReExports(
-  exportStatement: TsNode,
+function collectCrossFileReExports(
+  exportClause: TsNode,
+  sourceString: TsNode,
   relativePath: string,
   fileSet: ReadonlySet<string>,
   out: Map<string, ReExport>,
 ): void {
-  const exportClause = exportStatement.namedChildren.find((c) => c?.type === "export_clause");
-  if (!exportClause) return;
-  const sourceString = exportStatement.namedChildren.find((c) => c?.type === "string");
-  if (!sourceString) return;
   const specifier = extractStringFragment(sourceString);
   if (specifier === undefined) return;
   const targetFile = resolveImport(relativePath, specifier, fileSet);
@@ -195,6 +208,21 @@ function collectReExports(
     if (!sourceExportedName) continue;
     const localExportName = aliasNode?.text ?? sourceExportedName;
     out.set(localExportName, { sourceFile: targetFile, sourceExportedName });
+  }
+}
+
+function collectLocalReExports(
+  exportClause: TsNode,
+  out: Array<{ exportedName: string; localName: string }>,
+): void {
+  for (const spec of exportClause.namedChildren) {
+    if (!spec || spec.type !== "export_specifier") continue;
+    const nameNode = spec.childForFieldName("name");
+    const aliasNode = spec.childForFieldName("alias");
+    const localName = nameNode?.text;
+    if (!localName) continue;
+    const exportedName = aliasNode?.text ?? localName;
+    out.push({ exportedName, localName });
   }
 }
 

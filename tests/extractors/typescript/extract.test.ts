@@ -327,6 +327,54 @@ describe("extractIst — inheritance edges", () => {
     expect(new Set(fromIds).size).toBe(2);
   });
 
+  it("resolves through a source-less local re-export (`export { X };` after `class X {}`)", async () => {
+    writeFileSync(
+      join(repoPath, "parent.ts"),
+      ["class Parent {}", "export { Parent };", ""].join("\n"),
+    );
+    writeFileSync(
+      join(repoPath, "child.ts"),
+      ['import { Parent } from "./parent";', "export class Child extends Parent {}", ""].join("\n"),
+    );
+    const model = await extractIst(repoPath);
+    const parent = symbolByName(model, "Parent");
+    const child = symbolByName(model, "Child");
+    const edges = inheritanceEdges(model);
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ type: "extends", from: child?.id, to: parent?.id });
+  });
+
+  it("resolves through a source-less aliased local re-export (`export { X as Y };`)", async () => {
+    writeFileSync(
+      join(repoPath, "parent.ts"),
+      ["class Parent {}", "export { Parent as PublicParent };", ""].join("\n"),
+    );
+    writeFileSync(
+      join(repoPath, "child.ts"),
+      [
+        'import { PublicParent } from "./parent";',
+        "export class Child extends PublicParent {}",
+        "",
+      ].join("\n"),
+    );
+    const model = await extractIst(repoPath);
+    const parent = symbolByName(model, "Parent");
+    const child = symbolByName(model, "Child");
+    const edges = inheritanceEdges(model);
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ type: "extends", from: child?.id, to: parent?.id });
+  });
+
+  it("does not emit an inheritance edge for default-import inheritance (out of scope per spec)", async () => {
+    writeFileSync(join(repoPath, "parent.ts"), "export default class Parent {}\n");
+    writeFileSync(
+      join(repoPath, "child.ts"),
+      ['import Parent from "./parent";', "export class Child extends Parent {}", ""].join("\n"),
+    );
+    const model = await extractIst(repoPath);
+    expect(inheritanceEdges(model)).toEqual([]);
+  });
+
   it("is deterministic — repeat extraction on the same repo yields identical edge sets", async () => {
     writeFileSync(join(repoPath, "parent.ts"), "export class Parent {}\n");
     writeFileSync(

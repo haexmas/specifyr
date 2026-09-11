@@ -79,7 +79,9 @@ describe("aggregateEdges", () => {
     const parents = parentMap({ a: undefined, b: undefined });
     const edges = [makeEdge("e1", "a", "b")];
     const result = aggregateEdges(edges, parents, visible("a", "b"));
-    expect(result).toEqual([{ id: "e1", from: "a", to: "b", count: 1 }]);
+    expect(result).toEqual([
+      { id: "e1", from: "a", to: "b", count: 1, types: new Set(["imports"]) },
+    ]);
   });
 
   it("resolves a hidden endpoint up to its visible folder and synthesizes the aggregate id", () => {
@@ -90,7 +92,15 @@ describe("aggregateEdges", () => {
     });
     const edges = [makeEdge("e1", "folder/file", "target")];
     const result = aggregateEdges(edges, parents, visible("folder", "target"));
-    expect(result).toEqual([{ id: "agg:folder->target", from: "folder", to: "target", count: 1 }]);
+    expect(result).toEqual([
+      {
+        id: "agg:folder->target",
+        from: "folder",
+        to: "target",
+        count: 1,
+        types: new Set(["imports"]),
+      },
+    ]);
   });
 
   it("emits two aggregates when children of the same collapsed folder point to different visible targets", () => {
@@ -104,8 +114,8 @@ describe("aggregateEdges", () => {
     const edges = [makeEdge("e1", "folder/a", "x"), makeEdge("e2", "folder/b", "y")];
     const result = aggregateEdges(edges, parents, visible("folder", "x", "y"));
     expect(result).toEqual([
-      { id: "agg:folder->x", from: "folder", to: "x", count: 1 },
-      { id: "agg:folder->y", from: "folder", to: "y", count: 1 },
+      { id: "agg:folder->x", from: "folder", to: "x", count: 1, types: new Set(["imports"]) },
+      { id: "agg:folder->y", from: "folder", to: "y", count: 1, types: new Set(["imports"]) },
     ]);
   });
 
@@ -120,7 +130,9 @@ describe("aggregateEdges", () => {
     });
     const edges = [makeEdge("e1", "src/a", "dst/x"), makeEdge("e2", "src/b", "dst/y")];
     const result = aggregateEdges(edges, parents, visible("src", "dst"));
-    expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
+    expect(result).toEqual([
+      { id: "agg:src->dst", from: "src", to: "dst", count: 2, types: new Set(["imports"]) },
+    ]);
   });
 
   it("drops edges whose endpoints resolve to the same visible container (no self-loops)", () => {
@@ -171,8 +183,8 @@ describe("aggregateEdges", () => {
     const edges = [makeEdge("e1", "p/a", "q/b"), makeEdge("e2", "q/b", "p/a")];
     const result = aggregateEdges(edges, parents, visible("p", "q"));
     expect(result).toEqual([
-      { id: "agg:p->q", from: "p", to: "q", count: 1 },
-      { id: "agg:q->p", from: "q", to: "p", count: 1 },
+      { id: "agg:p->q", from: "p", to: "q", count: 1, types: new Set(["imports"]) },
+      { id: "agg:q->p", from: "q", to: "p", count: 1, types: new Set(["imports"]) },
     ]);
   });
 
@@ -184,7 +196,9 @@ describe("aggregateEdges", () => {
     const parents = parentMap({ src: undefined, dst: undefined });
     const edges = [makeEdge("raw-first", "src", "dst"), makeEdge("raw-second", "src", "dst")];
     const result = aggregateEdges(edges, parents, visible("src", "dst"));
-    expect(result).toEqual([{ id: "agg:src->dst", from: "src", to: "dst", count: 2 }]);
+    expect(result).toEqual([
+      { id: "agg:src->dst", from: "src", to: "dst", count: 2, types: new Set(["imports"]) },
+    ]);
   });
 
   it("bundles N visible siblings targeting the same visible top-level into one wrapper→top edge", () => {
@@ -216,7 +230,9 @@ describe("aggregateEdges", () => {
       "src",
     );
     const result = aggregateEdges(edges, parents, visibleIds);
-    expect(result).toEqual([{ id: "agg:utils->src", from: "utils", to: "src", count: 4 }]);
+    expect(result).toEqual([
+      { id: "agg:utils->src", from: "utils", to: "src", count: 4, types: new Set(["imports"]) },
+    ]);
   });
 
   it("preserves raw endpoints for an edge between two visible siblings in the same expanded wrapper", () => {
@@ -231,7 +247,15 @@ describe("aggregateEdges", () => {
     const edges = [makeEdge("e1", "utils/a.ts", "utils/b.ts")];
     const visibleIds = visible("utils", "utils/a.ts", "utils/b.ts");
     const result = aggregateEdges(edges, parents, visibleIds);
-    expect(result).toEqual([{ id: "e1", from: "utils/a.ts", to: "utils/b.ts", count: 1 }]);
+    expect(result).toEqual([
+      {
+        id: "e1",
+        from: "utils/a.ts",
+        to: "utils/b.ts",
+        count: 1,
+        types: new Set(["imports"]),
+      },
+    ]);
   });
 
   it("aggregates across deeply nested wrappers to the top-level pair when they share no visible ancestor", () => {
@@ -257,7 +281,15 @@ describe("aggregateEdges", () => {
       "src",
     );
     const result = aggregateEdges(edges, parents, visibleIds);
-    expect(result).toEqual([{ id: "agg:frontend->src", from: "frontend", to: "src", count: 2 }]);
+    expect(result).toEqual([
+      {
+        id: "agg:frontend->src",
+        from: "frontend",
+        to: "src",
+        count: 2,
+        types: new Set(["imports"]),
+      },
+    ]);
   });
 
   it("aggregates to the children of a shared visible ancestor when both endpoints live under it", () => {
@@ -274,7 +306,53 @@ describe("aggregateEdges", () => {
     const edges = [makeEdge("e1", "cli/foo.ts", "core/bar.ts")];
     const visibleIds = visible("src", "cli", "core", "cli/foo.ts", "core/bar.ts");
     const result = aggregateEdges(edges, parents, visibleIds);
-    expect(result).toEqual([{ id: "agg:cli->core", from: "cli", to: "core", count: 1 }]);
+    expect(result).toEqual([
+      { id: "agg:cli->core", from: "cli", to: "core", count: 1, types: new Set(["imports"]) },
+    ]);
+  });
+
+  it("carries a single-type Set through on a passthrough edge", () => {
+    const parents = parentMap({ a: undefined, b: undefined });
+    const edges = [makeEdge("e1", "a", "b", "extends")];
+    const result = aggregateEdges(edges, parents, visible("a", "b"));
+    expect(result).toEqual([
+      { id: "e1", from: "a", to: "b", count: 1, types: new Set(["extends"]) },
+    ]);
+  });
+
+  it("carries a single-type Set through on a same-type aggregate", () => {
+    const parents = parentMap({
+      src: undefined,
+      "src/a": "src",
+      "src/b": "src",
+      dst: undefined,
+    });
+    const edges = [
+      makeEdge("e1", "src/a", "dst", "extends"),
+      makeEdge("e2", "src/b", "dst", "extends"),
+    ];
+    const result = aggregateEdges(edges, parents, visible("src", "dst"));
+    expect(result).toEqual([
+      { id: "agg:src->dst", from: "src", to: "dst", count: 2, types: new Set(["extends"]) },
+    ]);
+  });
+
+  it("unions edge types when aggregating a mixed-type cross-wrapper pair", () => {
+    const parents = parentMap({
+      src: undefined,
+      "src/a": "src",
+      "src/b": "src",
+      dst: undefined,
+    });
+    const edges = [
+      makeEdge("e1", "src/a", "dst", "imports"),
+      makeEdge("e2", "src/b", "dst", "extends"),
+      makeEdge("e3", "src/b", "dst", "implements"),
+    ];
+    const result = aggregateEdges(edges, parents, visible("src", "dst"));
+    expect(result).toHaveLength(1);
+    expect(result[0]?.count).toBe(3);
+    expect(result[0]?.types).toEqual(new Set(["imports", "extends", "implements"]));
   });
 });
 

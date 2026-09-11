@@ -53,7 +53,10 @@ indicator appears in the TopBar while ELK crunches larger graphs. Nodes are
 coloured by type: SOLL components stand out in blue, modules in green,
 external services in amber, data stores in pink; IST classes in purple,
 interfaces in indigo, type aliases in teal, enums in orange, functions in red.
-Extends/implements edges and per-symbol edges land in a later slice.
+Class hierarchies show as solid `extends` and dashed `implements` edges
+alongside the existing `imports`; the details sidebar lists them as
+separate Extends / Extended by / Implements / Implemented by sections.
+Per-symbol call edges land in a later slice.
 
 Or install globally (once published to npm) with `npm i -g specifyr`.
 
@@ -78,7 +81,8 @@ Slice Nested Canvas: the canvas now renders as nested wrapper boxes — folders 
 Canvas polish: top-level grid frozen so expand/collapse never shifts sibling wrappers; edges routed as smoothstep with arrow markers, `imports` label suppressed while it's the only edge type. Small readability pass before Slice 4 (edge aggregation). ✅
 Slice Edge Aggregation: real `imports` edges no longer vanish when their endpoints hide inside a collapsed wrapper — every edge resolves upward to its nearest visible ancestor, self-loops from aggregation are dropped, duplicates dedupe to a single visible edge with a `count`. Neighbors sidebar still operates on raw edges (aggregation is a canvas-only rendering derivative). Fourth slice of the Explorer/Canvas/Details redesign ([docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md](docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md)). ✅
 Slice Search Auto-Expand: Enter on a search hit auto-expands the ancestor folder chain of the first match so its file wrapper becomes visible on the nested canvas; the camera does not move (the flow layout's "expanding a wrapper never shifts left/above content" invariant is the eye's anchor) and the match's file wrapper pulses once as an attention nudge. Fifth and final slice of the Explorer/Canvas/Details redesign ([docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md](docs/plans/2026-09-08-specifyr-ts-ist-hierarchy-design.md)). ✅
-Slice C+ (planned): shadcn-vue / Pinia, extends/implements edges, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
+Slice IST Inheritance Edges: the TypeScript extractor emits `extends` and `implements` edges alongside `imports` (same-file locals shadow imports; transitive re-exports followed; cycles dropped). Neighbors sidebar shows separate Extends / Extended by / Implements / Implemented by sections; the canvas draws `extends` solid, `implements` dashed, mixed-type cross-wrapper aggregates fall back to the imports style ([specs/001-ist-inheritance-edges/](specs/001-ist-inheritance-edges/)). ✅
+Slice C+ (planned): shadcn-vue / Pinia, Python + Java IST, SOLL↔IST drift matching, layout persistence (`_layout.json`), editing via MCP.
 
 ## License
 

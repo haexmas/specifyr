@@ -130,13 +130,20 @@ describe("specifyr editor /api/ist (end-to-end)", () => {
     });
     expect(anyMentionsSelection).toBe(true);
 
-    // Neighbors sanity check: the sidebar's Imports / Imported by sections
-    // must survive into the JS bundle. A regression that dropped the
-    // neighbor lists would silently ship a graph that can no longer be
-    // traversed from a selection — this catches that.
+    // Neighbors sanity check: the sidebar's Imports / Imported by / Extends /
+    // Implements sections must survive into the JS bundle. A regression that
+    // dropped the neighbor lists would silently ship a graph that can no
+    // longer be traversed from a selection — this catches that. The Extends
+    // and Implements sections have no content on the specifyr repo itself
+    // (no in-repo class hierarchies), so only their heading text is asserted.
     const anyMentionsNeighbors = bundles.some((name) => {
       const content = readFileSync(resolve(PUBLIC_NUXT, name), "utf8");
-      return content.includes("Imports (") && content.includes("Imported by (");
+      return (
+        content.includes("Imports (") &&
+        content.includes("Imported by (") &&
+        content.includes("Extends (") &&
+        content.includes("Implements (")
+      );
     });
     expect(anyMentionsNeighbors).toBe(true);
 

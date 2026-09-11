@@ -5,9 +5,7 @@ import type {
 } from "../../../src/extractors/typescript/resolve-symbol.js";
 import { resolveSymbol } from "../../../src/extractors/typescript/resolve-symbol.js";
 
-function makeSymbolIndex(
-  data: Record<string, Record<string, string[]>>,
-): SymbolIndex {
+function makeSymbolIndex(data: Record<string, Record<string, string[]>>): SymbolIndex {
   return {
     get(filePath, exportedName) {
       const perFile = data[filePath];

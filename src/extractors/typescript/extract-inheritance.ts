@@ -29,10 +29,7 @@ export async function extractInheritance(input: Input): Promise<RawInheritance[]
 }
 
 /** Walk an already-parsed tree and emit one `RawInheritance` per declared clause. */
-export function extractInheritanceFromTree(
-  tree: Tree,
-  relativePath: string,
-): RawInheritance[] {
+export function extractInheritanceFromTree(tree: Tree, relativePath: string): RawInheritance[] {
   const records: RawInheritance[] = [];
   const nameOccurrences = new Map<string, number>();
 
@@ -133,7 +130,10 @@ function typeIdentifierOf(node: TsNode): string | undefined {
 
 function unwrapExport(node: TsNode | null): TsNode | undefined {
   let current: TsNode | null = node;
-  while (current && (current.type === "export_statement" || current.type === "ambient_declaration")) {
+  while (
+    current &&
+    (current.type === "export_statement" || current.type === "ambient_declaration")
+  ) {
     current = current.namedChildren[0] ?? null;
   }
   return current ?? undefined;

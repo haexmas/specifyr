@@ -5,18 +5,15 @@ import type { Tree, Node as TsNode } from "web-tree-sitter";
 import type { Edge, Model, Node } from "../../core/schemas.js";
 import { ModelSchema } from "../../core/schemas.js";
 import { istEdgeId } from "./edge-id.js";
-import type { RawInheritance } from "./extract-inheritance.js";
-import { extractInheritanceFromTree } from "./extract-inheritance.js";
 import type { RawImport } from "./extract-imports.js";
 import { extractImportsFromTree } from "./extract-imports.js";
+import type { RawInheritance } from "./extract-inheritance.js";
+import { extractInheritanceFromTree } from "./extract-inheritance.js";
 import { extractSourceFromTree } from "./extract-source.js";
 import { istNodeId } from "./node-id.js";
 import { parseTypeScript } from "./parser.js";
 import { resolveImport } from "./resolve-import.js";
-import type {
-  FileImportIndex,
-  SymbolIndex,
-} from "./resolve-symbol.js";
+import type { FileImportIndex, SymbolIndex } from "./resolve-symbol.js";
 import { resolveSymbol } from "./resolve-symbol.js";
 import { walkTsFiles } from "./walk.js";
 
@@ -105,10 +102,7 @@ export async function extractIst(repoRoot: string): Promise<Model> {
   const symbolIndex = buildSymbolIndex(analysisByFile);
   const importIndexByFile = new Map<string, FileImportIndex>();
   for (const relativePath of files) {
-    importIndexByFile.set(
-      relativePath,
-      buildFileImportIndex(relativePath, rawImports, fileSet),
-    );
+    importIndexByFile.set(relativePath, buildFileImportIndex(relativePath, rawImports, fileSet));
   }
 
   const seenInheritance = new Set<string>();

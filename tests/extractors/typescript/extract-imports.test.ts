@@ -30,10 +30,7 @@ describe("extractImports", () => {
   });
 
   it("extracts multiple named imports (mixed self-named and aliased) in source order", async () => {
-    const raw = await extractImports(
-      "src/foo.ts",
-      'import { Foo, Bar as Baz } from "./x";\n',
-    );
+    const raw = await extractImports("src/foo.ts", 'import { Foo, Bar as Baz } from "./x";\n');
     expect(raw).toEqual([
       {
         fromRelative: "src/foo.ts",
@@ -70,9 +67,7 @@ describe("extractImports", () => {
 
   it("extracts a side-effect-only import with empty bindings", async () => {
     const raw = await extractImports("src/foo.ts", 'import "./bar";\n');
-    expect(raw).toEqual([
-      { fromRelative: "src/foo.ts", specifier: "./bar", bindings: [] },
-    ]);
+    expect(raw).toEqual([{ fromRelative: "src/foo.ts", specifier: "./bar", bindings: [] }]);
   });
 
   it("extracts multiple imports in file order (no dedup at this layer)", async () => {

@@ -275,11 +275,7 @@ describe("extractIst — inheritance edges", () => {
   it("dedupes a class that implements the same interface twice", async () => {
     writeFileSync(
       join(repoPath, "a.ts"),
-      [
-        "export interface Bar {}",
-        "export class Foo implements Bar, Bar {}",
-        "",
-      ].join("\n"),
+      ["export interface Bar {}", "export class Foo implements Bar, Bar {}", ""].join("\n"),
     );
     const model = await extractIst(repoPath);
     expect(inheritanceEdges(model)).toHaveLength(1);

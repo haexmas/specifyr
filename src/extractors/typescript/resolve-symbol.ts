@@ -5,9 +5,7 @@ export interface SymbolIndex {
 
 export interface FileImportIndex {
   /** Import binding for `localName` in this file, or undefined if not imported. */
-  get(
-    localName: string,
-  ): { targetFile: string; exportedName: string } | undefined;
+  get(localName: string): { targetFile: string; exportedName: string } | undefined;
 }
 
 /**

@@ -129,10 +129,7 @@ describe("neighborsOf", () => {
 
   it("dedupes duplicate edges to the same neighbor per bucket", () => {
     const nodes = [makeNode("a"), makeNode("b", "bravo")];
-    const edges = [
-      makeEdge("e1", "a", "b", "extends"),
-      makeEdge("e2", "a", "b", "extends"),
-    ];
+    const edges = [makeEdge("e1", "a", "b", "extends"), makeEdge("e2", "a", "b", "extends")];
     const result = neighborsOf("a", nodes, edges);
     expect(result.extends.map((n) => n.id)).toEqual(["b"]);
   });

@@ -282,7 +282,13 @@ describe("aggregateEdges", () => {
     );
     const result = aggregateEdges(edges, parents, visibleIds);
     expect(result).toEqual([
-      { id: "agg:frontend->src", from: "frontend", to: "src", count: 2, types: new Set(["imports"]) },
+      {
+        id: "agg:frontend->src",
+        from: "frontend",
+        to: "src",
+        count: 2,
+        types: new Set(["imports"]),
+      },
     ]);
   });
 
